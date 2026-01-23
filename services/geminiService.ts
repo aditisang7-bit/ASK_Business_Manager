@@ -1,9 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { Invoice, Appointment } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safely initialize the AI client
+let ai: GoogleGenAI | null = null;
+try {
+  const apiKey = process.env.API_KEY || '';
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+  } else {
+    console.warn("Gemini API Key is missing. AI features will be disabled.");
+  }
+} catch (error) {
+  console.error("Failed to initialize Gemini Client", error);
+}
 
 export const generateMarketingMessage = async (customerName: string, serviceName: string): Promise<string> => {
+  if (!ai) return `Hi ${customerName}, thanks for visiting! We hope you enjoyed your ${serviceName}.`;
+
   try {
     const model = 'gemini-3-flash-preview';
     const prompt = `Write a short, friendly, and professional WhatsApp message for a salon customer named ${customerName} who just had a ${serviceName}. 
@@ -22,6 +35,8 @@ export const generateMarketingMessage = async (customerName: string, serviceName
 };
 
 export const generateBusinessInsights = async (invoices: Invoice[], appointments: Appointment[]): Promise<string> => {
+  if (!ai) return "AI Insights unavailable. Please configure API Key.";
+
   try {
     const totalRev = invoices.reduce((acc, curr) => acc + curr.total, 0);
     const count = appointments.length;
@@ -43,6 +58,8 @@ export const generateBusinessInsights = async (invoices: Invoice[], appointments
 };
 
 export const analyzeCustomerFace = async (base64Image: string): Promise<any> => {
+  if (!ai) throw new Error("AI Client not initialized");
+
   try {
     // Robust Base64 extraction to handle data URLs properly
     const matches = base64Image.match(/^data:(.+);base64,(.+)$/);

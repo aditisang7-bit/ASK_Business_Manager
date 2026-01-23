@@ -1,5 +1,5 @@
 {
-  "name": "ASK_SaaS",
+  "name": "ASK Business Manager",
   "description": "A complete, production-ready salon management system with appointment scheduling, billing, staff management, and AI-powered insights.",
   "requestFramePermissions": [
     "camera"
