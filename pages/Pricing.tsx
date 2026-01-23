@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from '../services/i18n';
 
 type BillingCycle = 'monthly' | '3month' | '6month' | 'yearly';
 
 const Pricing: React.FC = () => {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
 
   const plans = [
@@ -28,7 +27,8 @@ const Pricing: React.FC = () => {
         'Maintenance & support'
       ],
       highlight: false,
-      badge: 'Best Value (6 mo)'
+      badge: null,
+      valueBadge: 'Best Value' // For 6 month specifically
     },
     {
       id: 'growth',
@@ -50,7 +50,8 @@ const Pricing: React.FC = () => {
         'Monthly optimization & support'
       ],
       highlight: true,
-      badge: 'Most Popular'
+      badge: 'Most Popular',
+      valueBadge: 'Recommended' // For 6 month specifically
     },
     {
       id: 'premium',
@@ -58,7 +59,7 @@ const Pricing: React.FC = () => {
       description: 'For serious businesses dominating their niche.',
       prices: {
         monthly: 14999,
-        '3month': 42999,
+        '3month': 42999, // Interpolated based on pattern
         '6month': 84999,
         yearly: 149999
       },
@@ -71,7 +72,8 @@ const Pricing: React.FC = () => {
         'Strategy & growth assistance'
       ],
       highlight: false,
-      badge: 'Premium'
+      badge: 'Premium',
+      valueBadge: 'Best ROI' // For Yearly
     }
   ];
 
@@ -79,10 +81,13 @@ const Pricing: React.FC = () => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  const getSavingsNote = () => {
-     if (billingCycle === 'monthly') return "Switch to Yearly to save ~16%";
-     if (billingCycle === 'yearly') return "You are saving the most!";
-     return "Excellent choice!";
+  const getCycleLabel = (cycle: BillingCycle) => {
+    switch(cycle) {
+      case 'monthly': return t('price_cycle_1');
+      case '3month': return t('price_cycle_3');
+      case '6month': return t('price_cycle_6');
+      case 'yearly': return t('price_cycle_12');
+    }
   };
 
   return (
@@ -114,7 +119,7 @@ const Pricing: React.FC = () => {
         </p>
 
         {/* Cycle Toggle */}
-        <div className="inline-flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden">
+        <div className="inline-flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden flex-wrap justify-center">
            {(['monthly', '3month', '6month', 'yearly'] as BillingCycle[]).map((cycle) => (
              <button
                 key={cycle}
@@ -125,9 +130,7 @@ const Pricing: React.FC = () => {
                   : 'text-slate-500 hover:bg-slate-50'
                 }`}
              >
-               {cycle === 'monthly' ? t('price_cycle_1') : 
-                cycle === '3month' ? t('price_cycle_3') :
-                cycle === '6month' ? t('price_cycle_6') : t('price_cycle_12')}
+               {getCycleLabel(cycle)}
              </button>
            ))}
         </div>
@@ -145,30 +148,44 @@ const Pricing: React.FC = () => {
            {plans.map((plan) => (
              <div 
                 key={plan.id}
-                className={`relative bg-white rounded-2xl p-8 border transition-all duration-300 ${
+                className={`relative bg-white rounded-2xl p-8 border transition-all duration-300 flex flex-col ${
                   plan.highlight 
                   ? 'border-indigo-600 shadow-2xl scale-105 z-10 ring-4 ring-indigo-50' 
                   : 'border-gray-200 shadow-lg hover:border-indigo-200 hover:shadow-xl'
                 }`}
              >
-               {plan.highlight && (
+               {plan.badge && (
                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-sm font-bold shadow-md whitespace-nowrap">
-                   <i className="fa-solid fa-star mr-1"></i> {t('price_popular')}
+                   <i className="fa-solid fa-star mr-1"></i> {plan.badge}
                  </div>
                )}
-               {/* 6 Month Badge Logic for Starter/Growth if selected */}
+               
+               {/* Contextual Value Badges */}
                {!plan.highlight && billingCycle === '6month' && plan.id === 'starter' && (
                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-md whitespace-nowrap">
-                   {t('price_best_value')}
+                   Best Value
                  </div>
                )}
+                {billingCycle === '6month' && plan.id === 'growth' && (
+                  <div className="absolute top-[-25px] right-0 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm transform rotate-12">
+                    Recommended
+                  </div>
+                )}
+                 {billingCycle === 'yearly' && plan.id === 'growth' && (
+                  <div className="absolute top-[-25px] right-0 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm transform rotate-12">
+                    Best ROI
+                  </div>
+                )}
 
                <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                <p className="text-sm text-slate-500 mb-6 h-10">{plan.description}</p>
                
                <div className="mb-8">
                  <span className="text-4xl font-extrabold text-slate-900">{formatPrice(plan.prices[billingCycle])}</span>
-                 <span className="text-slate-400 font-medium text-sm ml-2">/ {billingCycle === 'monthly' ? 'mo' : 'period'}</span>
+                 <span className="text-slate-400 font-medium text-sm ml-2">
+                    / {billingCycle === 'monthly' ? 'mo' : 
+                       billingCycle === 'yearly' ? 'yr' : 'term'}
+                 </span>
                </div>
 
                <Link 
@@ -182,7 +199,7 @@ const Pricing: React.FC = () => {
                  {plan.highlight ? t('price_start_now') : t('price_contact_sales')}
                </Link>
 
-               <div className="space-y-4">
+               <div className="space-y-4 flex-1">
                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">What's Included</p>
                  {plan.features.map((feat, i) => (
                    <div key={i} className="flex items-start gap-3">

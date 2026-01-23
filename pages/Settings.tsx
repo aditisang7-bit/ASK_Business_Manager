@@ -3,8 +3,11 @@ import { DB } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { useToast } from '../components/Toast';
 
+type BillingCycle = 'monthly' | '3month' | '6month' | 'yearly';
+
 const Settings: React.FC = () => {
   const [profile, setProfile] = useState(DB.getProfile());
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const { t } = useTranslation();
   const { showToast } = useToast();
 
@@ -13,11 +16,12 @@ const Settings: React.FC = () => {
     showToast(t('common_saved'), "success");
   };
 
-  const handleSubscribe = (plan: 'monthly' | 'yearly') => {
-    const amount = plan === 'monthly' ? 999 : 9999;
-    const confirm = window.confirm(`Proceed to Razorpay to pay ₹${amount} for ${plan} plan?`);
+  const handleSubscribe = (tier: string, amount: number) => {
+    const confirm = window.confirm(`Proceed to Razorpay to pay ₹${amount} for ${tier} (${billingCycle}) plan?`);
     if (confirm) {
-      const updated = { ...profile, isSubscribed: true, subscriptionPlan: plan };
+      // Cast billingCycle to the union type expected by profile if needed, or update profile type definition
+      // For now, assuming profile.subscriptionPlan allows string or matches this logic
+      const updated = { ...profile, isSubscribed: true, subscriptionPlan: billingCycle as any };
       setProfile(updated);
       DB.saveProfile(updated);
       showToast("Payment Successful! Plan Upgraded.", "success");
@@ -34,8 +38,18 @@ const Settings: React.FC = () => {
     });
   };
 
+  const formatPrice = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+  };
+
+  const plans = {
+    starter: { monthly: 3999, '3month': 10999, '6month': 20999, yearly: 39999 },
+    growth: { monthly: 7999, '3month': 21999, '6month': 41999, yearly: 79999 },
+    premium: { monthly: 14999, '3month': 42999, '6month': 84999, yearly: 149999 }
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-4xl mx-auto space-y-8 pb-10">
       <h2 className="text-2xl font-bold text-slate-800">{t('set_title')}</h2>
 
       {/* Subscription / Pricing Plans */}
@@ -62,60 +76,75 @@ const Settings: React.FC = () => {
              </button>
            </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Free Plan */}
-            <div className="border border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors bg-gray-50/50">
-               <h4 className="text-lg font-bold text-slate-800">Freelancer</h4>
-               <p className="text-3xl font-bold mt-2">₹0</p>
-               <p className="text-sm text-gray-500 mb-6">Forever free for small setups.</p>
-               <ul className="space-y-3 text-sm text-gray-600 mb-6">
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Max 50 Appts/mo</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Basic Invoicing</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> 1 Staff Member</li>
-                 <li className="flex gap-2 items-center text-gray-400"><i className="fa-solid fa-xmark"></i> No AI Features</li>
-               </ul>
-               <button className="w-full py-2 bg-gray-200 text-gray-600 font-bold rounded-lg cursor-not-allowed">Current Plan</button>
+          <>
+            {/* Billing Cycle Toggle */}
+            <div className="flex justify-center mb-8">
+               <div className="bg-slate-100 p-1 rounded-lg inline-flex">
+                 {(['monthly', '3month', '6month', 'yearly'] as BillingCycle[]).map(c => (
+                   <button
+                     key={c}
+                     onClick={() => setBillingCycle(c)}
+                     className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+                        billingCycle === c ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'
+                     }`}
+                   >
+                     {c === 'monthly' ? 'Monthly' : c === '3month' ? '3 Months' : c === '6month' ? '6 Months' : 'Yearly'}
+                   </button>
+                 ))}
+               </div>
             </div>
 
-            {/* Monthly Plan */}
-            <div className="border border-indigo-200 rounded-xl p-6 hover:shadow-lg transition-all relative bg-white">
-               <h4 className="text-lg font-bold text-indigo-900">Growth (Monthly)</h4>
-               <div className="flex items-baseline mt-2">
-                  <p className="text-3xl font-bold text-slate-900">₹999</p>
-                  <span className="text-gray-500 text-sm ml-1">/ month</span>
-               </div>
-               <p className="text-sm text-gray-500 mb-6">Perfect for growing salons.</p>
-               <ul className="space-y-3 text-sm text-gray-600 mb-6">
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Unlimited Appts</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Up to 5 Staff</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> WhatsApp Reminders</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> AI Consultant (10/mo)</li>
-               </ul>
-               <button onClick={() => handleSubscribe('monthly')} className="w-full py-2 bg-indigo-100 text-indigo-700 font-bold rounded-lg hover:bg-indigo-200">
-                 Subscribe Monthly
-               </button>
-            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Starter Plan */}
+              <div className="border border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors bg-white flex flex-col">
+                <h4 className="text-lg font-bold text-slate-800">Starter</h4>
+                <p className="text-3xl font-bold mt-2 text-slate-800">{formatPrice(plans.starter[billingCycle])}</p>
+                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
+                <p className="text-sm text-gray-500 mb-4">Best for small businesses.</p>
+                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Basic Website</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Booking System</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Basic AI Chatbot</li>
+                </ul>
+                <button onClick={() => handleSubscribe('Starter', plans.starter[billingCycle])} className="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 text-sm">
+                  Choose Starter
+                </button>
+              </div>
 
-            {/* Yearly Plan */}
-            <div className="border-2 border-indigo-600 rounded-xl p-6 relative overflow-hidden bg-gradient-to-b from-white to-indigo-50 transform hover:-translate-y-1 transition-transform">
-               <div className="absolute top-0 right-0 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">BEST VALUE</div>
-               <h4 className="text-lg font-bold text-indigo-900">Enterprise (Yearly)</h4>
-               <div className="flex items-baseline mt-2">
-                  <p className="text-3xl font-bold text-slate-900">₹9,999</p>
-                  <span className="text-gray-500 text-sm ml-1">/ year</span>
-               </div>
-               <p className="text-sm text-gray-500 mb-6">Full power for serious business.</p>
-               <ul className="space-y-3 text-sm text-gray-600 mb-6">
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> <b>Unlimited Everything</b></li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Priority Support</li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> <b>Unlimited AI Analysis</b></li>
-                 <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Multi-branch ready</li>
-               </ul>
-               <button onClick={() => handleSubscribe('yearly')} className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 shadow-md">
-                 Upgrade Yearly
-               </button>
+              {/* Growth Plan */}
+              <div className="border border-indigo-200 rounded-xl p-6 hover:shadow-lg transition-all relative bg-white ring-2 ring-indigo-50 flex flex-col">
+                <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAR</div>
+                <h4 className="text-lg font-bold text-indigo-900">Growth</h4>
+                <p className="text-3xl font-bold mt-2 text-indigo-900">{formatPrice(plans.growth[billingCycle])}</p>
+                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
+                <p className="text-sm text-gray-500 mb-4">Scale fast with automation.</p>
+                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Website + App (MVP)</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> AI Calling Agent</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> WhatsApp Auto</li>
+                </ul>
+                <button onClick={() => handleSubscribe('Growth', plans.growth[billingCycle])} className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 text-sm">
+                  Choose Growth
+                </button>
+              </div>
+
+              {/* Premium Plan */}
+              <div className="border border-purple-200 rounded-xl p-6 hover:shadow-lg transition-all relative bg-gradient-to-b from-white to-purple-50 flex flex-col">
+                <h4 className="text-lg font-bold text-purple-900">Premium</h4>
+                <p className="text-3xl font-bold mt-2 text-purple-900">{formatPrice(plans.premium[billingCycle])}</p>
+                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
+                <p className="text-sm text-gray-500 mb-4">Dominate your niche.</p>
+                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Custom AI Website</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Adv. Calling Agent</li>
+                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Priority Support</li>
+                </ul>
+                <button onClick={() => handleSubscribe('Premium', plans.premium[billingCycle])} className="w-full py-2 bg-purple-100 text-purple-700 font-bold rounded-lg hover:bg-purple-200 text-sm">
+                  Choose Premium
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </section>
 
