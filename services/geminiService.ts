@@ -1,7 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { Invoice, Appointment } from '../types';
 
-// Using the API key from environment variables is best practice for Vercel
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateMarketingMessage = async (customerName: string, serviceName: string): Promise<string> => {
@@ -86,9 +85,11 @@ export const analyzeCustomerFace = async (base64Image: string): Promise<any> => 
       }
     });
 
-    // Parse the JSON response
-    const text = response.text;
+    // Parse the JSON response with markdown cleanup
+    let text = response.text;
     if (text) {
+        // Strip markdown code blocks if present
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(text);
     }
     throw new Error("No response text");
