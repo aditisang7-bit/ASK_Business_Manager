@@ -33,13 +33,13 @@ const INITIAL_DATA = {
     upiId: 'luxesalon@upi',
     email: 'askmultinationalcompany@gmail.com',
     isSubscribed: true,
-    subscriptionPlan: 'yearly',
+    subscriptionPlan: 'starter',
     approved: true,
     gstIn: '',
     invoiceTerms: 'No returns on products. Services are non-refundable.',
     notificationSettings: {
       emailAppt: true,
-      whatsappAppt: false,
+      whatsappAppt: true,
       emailPayment: true,
       whatsappPayment: false
     }
@@ -241,6 +241,7 @@ export const DB = {
     const data = localStorage.getItem(DB_KEYS.PROFILE);
     if (!data) return INITIAL_DATA.profile;
     const profile = JSON.parse(data);
+    // Ensure nested objects exist to prevent crashes
     if (!profile.notificationSettings) profile.notificationSettings = INITIAL_DATA.profile.notificationSettings;
     if (!profile.invoiceTerms) profile.invoiceTerms = INITIAL_DATA.profile.invoiceTerms;
     if (profile.gstIn === undefined) profile.gstIn = '';

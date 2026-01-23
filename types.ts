@@ -108,7 +108,7 @@ export interface BusinessProfile {
   email: string; // Owner email
   upiId: string;
   isSubscribed: boolean;
-  subscriptionPlan: 'trial' | 'monthly' | '3month' | '6month' | 'yearly';
+  subscriptionPlan: string;
   gstIn?: string;
   logo?: string;
   approved: boolean;

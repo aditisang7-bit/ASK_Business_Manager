@@ -2,92 +2,64 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../services/i18n';
 
-type BillingCycle = 'monthly' | '3month' | '6month' | 'yearly';
+type BillingCycle = 'monthly' | 'yearly';
 
 const Pricing: React.FC = () => {
   const { t } = useTranslation();
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly');
 
   const plans = [
     {
+      id: 'free',
+      name: 'Free Forever',
+      description: 'Perfect for freelancers & small home setups.',
+      prices: { monthly: 0, yearly: 0 },
+      features: [
+        '50 Appointments per month',
+        '1 Staff Login',
+        'Basic Booking System',
+        'Manual WhatsApp Reminders',
+        'Limited Reports'
+      ],
+      highlight: false,
+      badge: null
+    },
+    {
       id: 'starter',
       name: 'Starter',
-      description: 'Best for small businesses & startups',
-      prices: {
-        monthly: 3999,
-        '3month': 10999,
-        '6month': 20999,
-        yearly: 39999
-      },
+      description: 'For growing salons requiring automation.',
+      prices: { monthly: 999, yearly: 9999 },
       features: [
-        'AI-powered website or landing page',
-        'Booking or inquiry system',
-        'Basic AI chatbot',
-        'Payment gateway integration',
-        'Maintenance & support'
-      ],
-      highlight: false,
-      badge: null,
-      valueBadge: 'Best Value' // For 6 month specifically
-    },
-    {
-      id: 'growth',
-      name: 'Growth',
-      description: 'Everything you need to scale fast.',
-      prices: {
-        monthly: 7999,
-        '3month': 21999,
-        '6month': 41999,
-        yearly: 79999
-      },
-      features: [
-        'Website + App (MVP)',
-        'Booking & slot system',
-        'AI chatbot + basic calling agent',
-        'WhatsApp & email automation',
-        'Payment gateway',
-        'Basic SEO',
-        'Monthly optimization & support'
+        'Unlimited Appointments',
+        '3 Staff Logins',
+        'Automated WhatsApp Reminders',
+        'GST Invoicing & Billing',
+        'Basic AI Business Insights',
+        'Email Support'
       ],
       highlight: true,
-      badge: 'Most Popular',
-      valueBadge: 'Recommended' // For 6 month specifically
+      badge: 'Best Value'
     },
     {
-      id: 'premium',
-      name: 'Premium',
-      description: 'For serious businesses dominating their niche.',
-      prices: {
-        monthly: 14999,
-        '3month': 42999, // Interpolated based on pattern
-        '6month': 84999,
-        yearly: 149999
-      },
+      id: 'pro',
+      name: 'Pro Business',
+      description: 'Full-scale management for busy salons.',
+      prices: { monthly: 2499, yearly: 24999 },
       features: [
-        'Custom AI website & app',
-        'Advanced AI calling agent',
-        'CRM & lead tracking',
-        'Advanced automation',
-        'Priority support',
-        'Strategy & growth assistance'
+        'Unlimited Everything',
+        'Unlimited Staff',
+        'Inventory & Stock Management',
+        'Staff Commission Calculator',
+        'Advanced AI Consultant (Face Analysis)',
+        'Priority Phone Support'
       ],
       highlight: false,
-      badge: 'Premium',
-      valueBadge: 'Best ROI' // For Yearly
+      badge: 'Power User'
     }
   ];
 
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-  };
-
-  const getCycleLabel = (cycle: BillingCycle) => {
-    switch(cycle) {
-      case 'monthly': return t('price_cycle_1');
-      case '3month': return t('price_cycle_3');
-      case '6month': return t('price_cycle_6');
-      case 'yearly': return t('price_cycle_12');
-    }
   };
 
   return (
@@ -119,27 +91,24 @@ const Pricing: React.FC = () => {
         </p>
 
         {/* Cycle Toggle */}
-        <div className="inline-flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-8 overflow-hidden flex-wrap justify-center">
-           {(['monthly', '3month', '6month', 'yearly'] as BillingCycle[]).map((cycle) => (
-             <button
-                key={cycle}
-                onClick={() => setBillingCycle(cycle)}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                  billingCycle === cycle 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'text-slate-500 hover:bg-slate-50'
-                }`}
-             >
-               {getCycleLabel(cycle)}
-             </button>
-           ))}
+        <div className="inline-flex bg-white p-1 rounded-xl shadow-sm border border-gray-200 mb-4">
+           <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+                billingCycle === 'monthly' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+           >
+             Monthly
+           </button>
+           <button
+              onClick={() => setBillingCycle('yearly')}
+              className={`px-6 py-2 text-sm font-bold rounded-lg transition-all ${
+                billingCycle === 'yearly' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+           >
+             Yearly <span className="ml-1 text-[10px] bg-green-100 text-green-700 px-1 rounded">-20%</span>
+           </button>
         </div>
-        
-        {billingCycle !== 'monthly' && (
-           <p className="text-green-600 font-bold text-sm animate-bounce mb-4">
-             <i className="fa-solid fa-tags mr-1"></i> {t('price_save_note')}
-           </p>
-        )}
       </div>
 
       {/* Pricing Cards */}
@@ -159,23 +128,6 @@ const Pricing: React.FC = () => {
                    <i className="fa-solid fa-star mr-1"></i> {plan.badge}
                  </div>
                )}
-               
-               {/* Contextual Value Badges */}
-               {!plan.highlight && billingCycle === '6month' && plan.id === 'starter' && (
-                 <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-green-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-md whitespace-nowrap">
-                   Best Value
-                 </div>
-               )}
-                {billingCycle === '6month' && plan.id === 'growth' && (
-                  <div className="absolute top-[-25px] right-0 bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm transform rotate-12">
-                    Recommended
-                  </div>
-                )}
-                 {billingCycle === 'yearly' && plan.id === 'growth' && (
-                  <div className="absolute top-[-25px] right-0 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-sm transform rotate-12">
-                    Best ROI
-                  </div>
-                )}
 
                <h3 className="text-2xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                <p className="text-sm text-slate-500 mb-6 h-10">{plan.description}</p>
@@ -183,8 +135,7 @@ const Pricing: React.FC = () => {
                <div className="mb-8">
                  <span className="text-4xl font-extrabold text-slate-900">{formatPrice(plan.prices[billingCycle])}</span>
                  <span className="text-slate-400 font-medium text-sm ml-2">
-                    / {billingCycle === 'monthly' ? 'mo' : 
-                       billingCycle === 'yearly' ? 'yr' : 'term'}
+                    / {billingCycle === 'monthly' ? 'mo' : 'yr'}
                  </span>
                </div>
 
@@ -196,7 +147,7 @@ const Pricing: React.FC = () => {
                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
                  }`}
                >
-                 {plan.highlight ? t('price_start_now') : t('price_contact_sales')}
+                 {plan.id === 'free' ? 'Get Started Free' : 'Start Free Trial'}
                </Link>
 
                <div className="space-y-4 flex-1">
@@ -213,19 +164,6 @@ const Pricing: React.FC = () => {
         </div>
       </div>
 
-      {/* Comparison Note */}
-      <div className="max-w-4xl mx-auto px-4 text-center mb-20">
-        <div className="bg-indigo-900 text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-           <div className="text-left">
-             <h3 className="text-xl font-bold mb-2">Long-term plans save up to 25%</h3>
-             <p className="text-indigo-200">Most businesses choose 6-month or yearly plans for better results and ROI.</p>
-           </div>
-           <button onClick={() => setBillingCycle('yearly')} className="bg-white text-indigo-900 px-6 py-3 rounded-lg font-bold hover:bg-indigo-50 transition-colors whitespace-nowrap">
-             View Yearly Pricing
-           </button>
-        </div>
-      </div>
-
       {/* CTA Section */}
       <div className="bg-slate-50 py-20 border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-4 text-center">
@@ -234,32 +172,11 @@ const Pricing: React.FC = () => {
               <Link to="/auth" className="px-8 py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-xl hover:bg-indigo-700 hover:-translate-y-1 transition-all">
                 {t('price_start_now')}
               </Link>
-              <button onClick={() => window.open('mailto:askmultinationalcompany@gmail.com')} className="px-8 py-4 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold text-lg shadow-sm hover:border-indigo-200 hover:text-indigo-600 transition-all">
-                {t('price_contact_sales')}
-              </button>
            </div>
         </div>
       </div>
 
-      {/* FAQ Section */}
-      <div className="max-w-3xl mx-auto px-4 py-20">
-        <h2 className="text-2xl font-bold text-center mb-10 text-slate-900">Frequently Asked Questions</h2>
-        <div className="space-y-4">
-           {[
-             { q: "Can I upgrade my plan later?", a: "Yes, you can upgrade your plan at any time. The remaining balance of your current plan will be adjusted." },
-             { q: "Is customer support included?", a: "Absolutely! All plans come with support. The Growth and Premium plans include priority and dedicated support." },
-             { q: "Do you offer refunds?", a: "We offer refunds for subscription cancellations if requested within 48 hours of the payment." },
-             { q: "Is payment secure?", a: "Yes, we use Razorpay, a PCI-DSS compliant payment gateway, to handle all transactions securely." }
-           ].map((faq, i) => (
-             <div key={i} className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-               <h4 className="font-bold text-slate-800 mb-2">{faq.q}</h4>
-               <p className="text-slate-600 text-sm">{faq.a}</p>
-             </div>
-           ))}
-        </div>
-      </div>
-      
-      {/* Simple Footer */}
+      {/* Footer */}
       <div className="border-t border-gray-100 py-8 text-center text-slate-400 text-sm">
          <p>&copy; {new Date().getFullYear()} A.S.K. Multinational Company.</p>
       </div>

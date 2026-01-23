@@ -3,28 +3,36 @@ import { DB } from '../services/db';
 import { useTranslation } from '../services/i18n';
 import { useToast } from '../components/Toast';
 
-type BillingCycle = 'monthly' | '3month' | '6month' | 'yearly';
+type SettingsTab = 'plans' | 'profile' | 'notifications';
+type BillingCycle = 'monthly' | 'yearly';
 
 const Settings: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>('plans');
   const [profile, setProfile] = useState(DB.getProfile());
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('yearly');
   const { t } = useTranslation();
   const { showToast } = useToast();
 
-  const handleSave = () => {
+  const handleSaveProfile = () => {
     DB.saveProfile(profile);
     showToast(t('common_saved'), "success");
   };
 
-  const handleSubscribe = (tier: string, amount: number) => {
-    const confirm = window.confirm(`Proceed to Razorpay to pay ₹${amount} for ${tier} (${billingCycle}) plan?`);
+  const handleSubscribe = (planName: string, amount: number) => {
+    if (amount === 0) {
+        const updated = { ...profile, isSubscribed: false, subscriptionPlan: 'free' as any };
+        setProfile(updated);
+        DB.saveProfile(updated);
+        showToast("Switched to Free Plan.", "success");
+        return;
+    }
+
+    const confirm = window.confirm(`Upgrade to ${planName} Plan for ₹${amount}/${billingCycle === 'monthly' ? 'mo' : 'yr'}? \n\nSecure Payment via Razorpay.`);
     if (confirm) {
-      // Cast billingCycle to the union type expected by profile if needed, or update profile type definition
-      // For now, assuming profile.subscriptionPlan allows string or matches this logic
-      const updated = { ...profile, isSubscribed: true, subscriptionPlan: billingCycle as any };
+      const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() as any };
       setProfile(updated);
       DB.saveProfile(updated);
-      showToast("Payment Successful! Plan Upgraded.", "success");
+      showToast(`Successfully upgraded to ${planName}!`, "success");
     }
   };
 
@@ -42,200 +50,296 @@ const Settings: React.FC = () => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  const plans = {
-    starter: { monthly: 3999, '3month': 10999, '6month': 20999, yearly: 39999 },
-    growth: { monthly: 7999, '3month': 21999, '6month': 41999, yearly: 79999 },
-    premium: { monthly: 14999, '3month': 42999, '6month': 84999, yearly: 149999 }
-  };
+  // Competitive Indian Market Pricing
+  const PLANS = [
+    {
+      id: 'free',
+      name: 'Free Forever',
+      price: { monthly: 0, yearly: 0 },
+      features: ['50 Appointments/mo', '1 Staff Member', 'Basic Reports', 'Manual Reminders'],
+      color: 'gray',
+      recommended: false
+    },
+    {
+      id: 'starter',
+      name: 'Starter',
+      price: { monthly: 999, yearly: 9999 },
+      features: ['Unlimited Appointments', '3 Staff Members', 'WhatsApp Reminders', 'GST Invoicing', 'Basic AI Insights'],
+      color: 'blue',
+      recommended: true
+    },
+    {
+      id: 'pro',
+      name: 'Pro Business',
+      price: { monthly: 2499, yearly: 24999 },
+      features: ['Unlimited Everything', 'Advanced AI Consultant', 'Inventory Tracking', 'Staff Commission Calc', 'Priority Support'],
+      color: 'purple',
+      recommended: false
+    }
+  ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-10">
-      <h2 className="text-2xl font-bold text-slate-800">{t('set_title')}</h2>
+    <div className="max-w-7xl mx-auto pb-10">
+      <h2 className="text-3xl font-bold text-slate-800 mb-2">{t('set_title')}</h2>
+      <p className="text-slate-500 mb-8">Manage your subscription, business details, and preferences.</p>
 
-      {/* Subscription / Pricing Plans */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-          <i className="fa-solid fa-crown text-amber-500"></i> {t('set_plan_title')}
-        </h3>
+      <div className="flex flex-col lg:flex-row gap-8">
         
-        {profile.isSubscribed ? (
-           <div className="bg-green-50 border border-green-200 rounded-xl p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-             <div>
-               <h4 className="text-xl font-bold text-green-800 text-capitalize">{profile.subscriptionPlan} Plan Active</h4>
-               <p className="text-green-700 text-sm mt-1">{t('set_next_bill')}: Dec 31, 2024</p>
-               <span className="inline-block mt-2 bg-green-200 text-green-800 text-xs font-bold px-2 py-1 rounded">{t('set_paid')}</span>
-             </div>
-             <button onClick={() => {
-                if(window.confirm("Cancel subscription?")) {
-                   const updated = {...profile, isSubscribed: false, subscriptionPlan: 'trial' as any};
-                   setProfile(updated);
-                   DB.saveProfile(updated);
-                }
-             }} className="px-4 py-2 bg-white border border-green-300 text-green-700 rounded-lg hover:bg-green-100 font-medium text-sm">
-               Manage / Cancel
-             </button>
-           </div>
-        ) : (
-          <>
-            {/* Billing Cycle Toggle */}
-            <div className="flex justify-center mb-8">
-               <div className="bg-slate-100 p-1 rounded-lg inline-flex">
-                 {(['monthly', '3month', '6month', 'yearly'] as BillingCycle[]).map(c => (
-                   <button
-                     key={c}
-                     onClick={() => setBillingCycle(c)}
-                     className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
-                        billingCycle === c ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-700'
-                     }`}
-                   >
-                     {c === 'monthly' ? 'Monthly' : c === '3month' ? '3 Months' : c === '6month' ? '6 Months' : 'Yearly'}
-                   </button>
-                 ))}
-               </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Starter Plan */}
-              <div className="border border-gray-200 rounded-xl p-6 hover:border-gray-300 transition-colors bg-white flex flex-col">
-                <h4 className="text-lg font-bold text-slate-800">Starter</h4>
-                <p className="text-3xl font-bold mt-2 text-slate-800">{formatPrice(plans.starter[billingCycle])}</p>
-                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
-                <p className="text-sm text-gray-500 mb-4">Best for small businesses.</p>
-                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Basic Website</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Booking System</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Basic AI Chatbot</li>
-                </ul>
-                <button onClick={() => handleSubscribe('Starter', plans.starter[billingCycle])} className="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 text-sm">
-                  Choose Starter
-                </button>
-              </div>
-
-              {/* Growth Plan */}
-              <div className="border border-indigo-200 rounded-xl p-6 hover:shadow-lg transition-all relative bg-white ring-2 ring-indigo-50 flex flex-col">
-                <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-bl-lg">POPULAR</div>
-                <h4 className="text-lg font-bold text-indigo-900">Growth</h4>
-                <p className="text-3xl font-bold mt-2 text-indigo-900">{formatPrice(plans.growth[billingCycle])}</p>
-                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
-                <p className="text-sm text-gray-500 mb-4">Scale fast with automation.</p>
-                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Website + App (MVP)</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> AI Calling Agent</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> WhatsApp Auto</li>
-                </ul>
-                <button onClick={() => handleSubscribe('Growth', plans.growth[billingCycle])} className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 text-sm">
-                  Choose Growth
-                </button>
-              </div>
-
-              {/* Premium Plan */}
-              <div className="border border-purple-200 rounded-xl p-6 hover:shadow-lg transition-all relative bg-gradient-to-b from-white to-purple-50 flex flex-col">
-                <h4 className="text-lg font-bold text-purple-900">Premium</h4>
-                <p className="text-3xl font-bold mt-2 text-purple-900">{formatPrice(plans.premium[billingCycle])}</p>
-                <p className="text-xs text-gray-500 mb-6 font-medium">/ {billingCycle === 'monthly' ? 'mo' : 'term'}</p>
-                <p className="text-sm text-gray-500 mb-4">Dominate your niche.</p>
-                <ul className="space-y-2 text-xs text-gray-600 mb-6 flex-1">
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Custom AI Website</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Adv. Calling Agent</li>
-                  <li className="flex gap-2 items-center"><i className="fa-solid fa-check text-green-500"></i> Priority Support</li>
-                </ul>
-                <button onClick={() => handleSubscribe('Premium', plans.premium[billingCycle])} className="w-full py-2 bg-purple-100 text-purple-700 font-bold rounded-lg hover:bg-purple-200 text-sm">
-                  Choose Premium
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-      </section>
-
-      {/* Business Profile */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <i className="fa-solid fa-store text-indigo-500"></i> {t('set_profile')}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_salon_name')}</label>
-            <input 
-              className="w-full border rounded-lg p-2"
-              value={profile.name} 
-              onChange={e => setProfile({...profile, name: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_phone')}</label>
-            <input 
-              className="w-full border rounded-lg p-2"
-              value={profile.phone} 
-              onChange={e => setProfile({...profile, phone: e.target.value})}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_address')}</label>
-            <input 
-              className="w-full border rounded-lg p-2"
-              value={profile.address} 
-              onChange={e => setProfile({...profile, address: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_upi')}</label>
-            <input 
-              className="w-full border rounded-lg p-2 bg-slate-50 font-mono"
-              value={profile.upiId} 
-              onChange={e => setProfile({...profile, upiId: e.target.value})}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_gst')}</label>
-            <input 
-              className="w-full border rounded-lg p-2"
-              value={profile.gstIn || ''} 
-              onChange={e => setProfile({...profile, gstIn: e.target.value})}
-              placeholder="GSTIN12345"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t('set_terms')}</label>
-            <textarea 
-              className="w-full border rounded-lg p-2 text-sm h-20"
-              value={profile.invoiceTerms || ''} 
-              onChange={e => setProfile({...profile, invoiceTerms: e.target.value})}
-              placeholder="Thank you for visiting..."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Notification Settings */}
-      <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-          <i className="fa-solid fa-bell text-indigo-500"></i> {t('set_notifications')}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-           <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-             <input type="checkbox" checked={profile.notificationSettings.emailAppt} onChange={() => toggleNotify('emailAppt')} className="h-5 w-5 text-indigo-600 rounded" />
-             <span className="text-sm font-medium text-gray-700">{t('set_notify_email_appt')}</span>
-           </label>
-           <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-             <input type="checkbox" checked={profile.notificationSettings.whatsappAppt} onChange={() => toggleNotify('whatsappAppt')} className="h-5 w-5 text-indigo-600 rounded" />
-             <span className="text-sm font-medium text-gray-700">{t('set_notify_wa_appt')}</span>
-           </label>
-           <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-             <input type="checkbox" checked={profile.notificationSettings.emailPayment} onChange={() => toggleNotify('emailPayment')} className="h-5 w-5 text-indigo-600 rounded" />
-             <span className="text-sm font-medium text-gray-700">{t('set_notify_email_pay')}</span>
-           </label>
-           <label className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
-             <input type="checkbox" checked={profile.notificationSettings.whatsappPayment} onChange={() => toggleNotify('whatsappPayment')} className="h-5 w-5 text-indigo-600 rounded" />
-             <span className="text-sm font-medium text-gray-700">{t('set_notify_wa_pay')}</span>
-           </label>
-        </div>
-      </section>
-
-      <div className="flex justify-end">
-         <button onClick={handleSave} className="px-8 py-3 bg-slate-900 text-white rounded-xl hover:bg-slate-700 transition-colors font-bold shadow-lg">
-            {t('common_save')}
+        {/* LEFT SIDEBAR NAVIGATION */}
+        <aside className="w-full lg:w-64 flex-shrink-0 space-y-2">
+          <button 
+            onClick={() => setActiveTab('plans')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'plans' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-50 border border-transparent'
+            }`}
+          >
+            <i className="fa-solid fa-crown w-5 text-center"></i> Plans & Billing
           </button>
+          
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'profile' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-50 border border-transparent'
+            }`}
+          >
+            <i className="fa-solid fa-store w-5 text-center"></i> Business Profile
+          </button>
+
+          <button 
+            onClick={() => setActiveTab('notifications')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'notifications' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-50 border border-transparent'
+            }`}
+          >
+            <i className="fa-solid fa-bell w-5 text-center"></i> Notifications
+          </button>
+        </aside>
+
+        {/* MAIN CONTENT AREA */}
+        <main className="flex-1">
+          
+          {/* --- PLANS TAB --- */}
+          {activeTab === 'plans' && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Current Status Card */}
+              <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
+                <div className="relative z-10">
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Current Active Plan</p>
+                  <h3 className="text-2xl font-bold capitalize">{profile.subscriptionPlan || 'Free Trial'}</h3>
+                  <p className="text-sm text-slate-300 mt-2">
+                    {profile.isSubscribed 
+                      ? 'Next billing date: Dec 31, 2024' 
+                      : 'You are on a limited free tier.'}
+                  </p>
+                </div>
+                {profile.isSubscribed && (
+                   <div className="relative z-10 bg-green-500/20 border border-green-500/50 text-green-300 px-3 py-1 rounded text-xs font-bold">
+                     ACTIVE
+                   </div>
+                )}
+                <div className="absolute right-0 top-0 w-48 h-48 bg-white opacity-5 rounded-full -mr-10 -mt-10 blur-3xl"></div>
+              </div>
+
+              {/* Toggle & Plans */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <div className="flex justify-center mb-8">
+                  <div className="bg-slate-100 p-1 rounded-xl inline-flex relative">
+                    <button 
+                      onClick={() => setBillingCycle('monthly')}
+                      className={`px-6 py-2 text-sm font-bold rounded-lg transition-all z-10 ${billingCycle === 'monthly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Monthly
+                    </button>
+                    <button 
+                      onClick={() => setBillingCycle('yearly')}
+                      className={`px-6 py-2 text-sm font-bold rounded-lg transition-all z-10 ${billingCycle === 'yearly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                    >
+                      Yearly <span className="text-[10px] text-green-600 ml-1 bg-green-100 px-1 rounded">-20%</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {PLANS.map(plan => {
+                    const price = plan.price[billingCycle];
+                    const isCurrent = (profile.subscriptionPlan || 'free') === plan.id;
+                    
+                    return (
+                      <div 
+                        key={plan.id} 
+                        className={`relative rounded-2xl p-6 border-2 transition-all flex flex-col ${
+                          isCurrent ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-100' : 
+                          plan.recommended ? 'border-purple-200 bg-white shadow-xl scale-105 z-10' : 
+                          'border-slate-100 bg-white hover:border-indigo-100 hover:shadow-lg'
+                        }`}
+                      >
+                        {plan.recommended && (
+                          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-md">
+                            Best Value
+                          </div>
+                        )}
+                        
+                        <div className="mb-4">
+                          <h4 className={`text-lg font-bold ${plan.id === 'pro' ? 'text-purple-700' : 'text-slate-800'}`}>{plan.name}</h4>
+                          <div className="mt-2 flex items-baseline">
+                             <span className="text-3xl font-extrabold text-slate-900">{formatPrice(price)}</span>
+                             <span className="text-slate-500 text-sm ml-1">/{billingCycle === 'monthly' ? 'mo' : 'yr'}</span>
+                          </div>
+                        </div>
+
+                        <ul className="space-y-3 mb-8 flex-1">
+                          {plan.features.map((feat, i) => (
+                            <li key={i} className="flex items-start gap-3 text-sm text-slate-600">
+                              <i className={`fa-solid fa-check mt-1 ${plan.id === 'free' ? 'text-slate-400' : 'text-green-500'}`}></i>
+                              {feat}
+                            </li>
+                          ))}
+                        </ul>
+
+                        <button 
+                          onClick={() => handleSubscribe(plan.name, price)}
+                          disabled={isCurrent}
+                          className={`w-full py-3 rounded-xl font-bold transition-colors ${
+                            isCurrent ? 'bg-green-100 text-green-700 cursor-default' :
+                            plan.id === 'pro' ? 'bg-purple-600 text-white hover:bg-purple-700 shadow-lg' :
+                            plan.id === 'starter' ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg' :
+                            'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          }`}
+                        >
+                          {isCurrent ? 'Current Plan' : plan.id === 'free' ? 'Downgrade' : 'Upgrade'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* --- PROFILE TAB --- */}
+          {activeTab === 'profile' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 animate-fade-in">
+              <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                 <i className="fa-solid fa-store text-indigo-600"></i> Business Details
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Salon / Business Name</label>
+                  <input 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={profile.name} 
+                    onChange={e => setProfile({...profile, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Owner Phone</label>
+                  <input 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={profile.phone} 
+                    onChange={e => setProfile({...profile, phone: e.target.value})}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Full Address</label>
+                  <input 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    value={profile.address} 
+                    onChange={e => setProfile({...profile, address: e.target.value})}
+                    placeholder="Shop No, Street, City, State, Pincode"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">UPI ID <span className="text-xs font-normal text-gray-500">(For QR Codes)</span></label>
+                  <div className="relative">
+                    <i className="fa-brands fa-google-pay absolute left-3 top-2.5 text-gray-400 text-lg"></i>
+                    <input 
+                      className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
+                      value={profile.upiId} 
+                      onChange={e => setProfile({...profile, upiId: e.target.value})}
+                      placeholder="business@upi"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">GSTIN <span className="text-xs font-normal text-gray-500">(Optional)</span></label>
+                  <input 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none uppercase"
+                    value={profile.gstIn || ''} 
+                    onChange={e => setProfile({...profile, gstIn: e.target.value})}
+                    placeholder="27ABCDE1234F1Z5"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Invoice Terms / Footer</label>
+                  <textarea 
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2 h-24 focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+                    value={profile.invoiceTerms || ''} 
+                    onChange={e => setProfile({...profile, invoiceTerms: e.target.value})}
+                    placeholder="e.g. Thank you for visiting. No refunds on services."
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-end">
+                <button onClick={handleSaveProfile} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 shadow-lg">
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* --- NOTIFICATIONS TAB --- */}
+          {activeTab === 'notifications' && (
+             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 animate-fade-in">
+               <h3 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                 <i className="fa-solid fa-bell text-indigo-600"></i> Alert Preferences
+               </h3>
+
+               <div className="space-y-4">
+                 <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div>
+                       <p className="font-bold text-slate-800">Email: Appointment Confirmations</p>
+                       <p className="text-xs text-gray-500">Receive emails when appointments are booked or cancelled.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={profile.notificationSettings.emailAppt} onChange={() => toggleNotify('emailAppt')} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                 </div>
+
+                 <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div>
+                       <p className="font-bold text-slate-800">WhatsApp: Appointment Alerts</p>
+                       <p className="text-xs text-gray-500">Receive WhatsApp messages for bookings (Requires Starter Plan).</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={profile.notificationSettings.whatsappAppt} onChange={() => toggleNotify('whatsappAppt')} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                    </label>
+                 </div>
+
+                 <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-slate-50 transition-colors">
+                    <div>
+                       <p className="font-bold text-slate-800">Email: Payment Receipts</p>
+                       <p className="text-xs text-gray-500">Get a copy of every invoice generated.</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" checked={profile.notificationSettings.emailPayment} onChange={() => toggleNotify('emailPayment')} />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                 </div>
+               </div>
+               
+               <div className="mt-8 flex justify-end">
+                <button onClick={handleSaveProfile} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 shadow-lg">
+                  Save Preferences
+                </button>
+              </div>
+             </div>
+          )}
+
+        </main>
       </div>
     </div>
   );
