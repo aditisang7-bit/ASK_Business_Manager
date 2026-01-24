@@ -18,22 +18,88 @@ const Settings: React.FC = () => {
     showToast(t('common_saved'), "success");
   };
 
-  const handleSubscribe = (planName: string, amount: number) => {
+  const loadRazorpay = () => {
+    return new Promise((resolve) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleSubscribe = async (planName: string, amount: number) => {
     if (amount === 0) {
-        const updated = { ...profile, isSubscribed: false, subscriptionPlan: 'free' as any };
+        const updated = { ...profile, isSubscribed: false, subscriptionPlan: 'free' };
         setProfile(updated);
         DB.saveProfile(updated);
         showToast("Switched to Free Plan.", "success");
         return;
     }
 
-    const confirm = window.confirm(`Upgrade to ${planName} Plan for ₹${amount}/${billingCycle === 'monthly' ? 'mo' : 'yr'}? \n\nSecure Payment via Razorpay.`);
-    if (confirm) {
-      const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() as any };
-      setProfile(updated);
-      DB.saveProfile(updated);
-      showToast(`Successfully upgraded to ${planName}!`, "success");
+    // 1. Check for API Key
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    if (!keyId) {
+        // Fallback for demo/dev if key is missing, or alert user to config
+        console.warn("RAZORPAY_KEY_ID is missing in environment variables.");
+        alert("Payment Gateway Error: Configuration missing (RAZORPAY_KEY_ID). \n\nFor demo purposes, we will simulate a success.");
+        
+        // Simulating success for demo resilience
+        const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() };
+        setProfile(updated);
+        DB.saveProfile(updated);
+        showToast(`Upgraded to ${planName} (Demo Mode)!`, "success");
+        return;
     }
+
+    // 2. Load SDK
+    const res = await loadRazorpay();
+    if (!res) {
+        showToast("Failed to load payment gateway. Check internet connection.", "error");
+        return;
+    }
+
+    // 3. Open Razorpay Checkout
+    const options = {
+        key: keyId,
+        amount: amount * 100, // Amount is in currency subunits (Paise)
+        currency: "INR",
+        name: "ASK Business Manager",
+        description: `Subscription for ${planName} (${billingCycle})`,
+        image: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", // App Logo
+        handler: function (response: any) {
+             // Payment Success
+             console.log("Payment Success", response);
+             
+             // Update Local State & DB
+             const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() };
+             setProfile(updated);
+             DB.saveProfile(updated);
+             
+             showToast(`Payment Successful! Welcome to ${planName}.`, "success");
+             // Optional: Send payment ID to backend to verify signature
+             console.log("Pay ID:", response.razorpay_payment_id);
+        },
+        prefill: {
+            name: profile.name,
+            email: profile.email,
+            contact: profile.phone
+        },
+        theme: {
+            color: "#4f46e5"
+        },
+        modal: {
+            ondismiss: function() {
+                showToast("Payment Cancelled", "info");
+            }
+        }
+    };
+
+    const paymentObject = new (window as any).Razorpay(options);
+    paymentObject.on('payment.failed', function (response: any){
+        showToast(`Payment Failed: ${response.error.description}`, "error");
+    });
+    paymentObject.open();
   };
 
   const toggleNotify = (key: keyof typeof profile.notificationSettings) => {
@@ -206,7 +272,7 @@ const Settings: React.FC = () => {
                             'bg-slate-100 text-slate-700 hover:bg-slate-200'
                           }`}
                         >
-                          {isCurrent ? 'Current Plan' : plan.id === 'free' ? 'Downgrade' : 'Upgrade'}
+                          {isCurrent ? 'Current Plan' : plan.id === 'free' ? 'Downgrade' : 'Pay with Razorpay'}
                         </button>
                       </div>
                     );

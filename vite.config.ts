@@ -11,6 +11,8 @@ export default defineConfig(({ mode }) => {
       'process.env': {}, 
       // Safely inject API key
       'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
+      // Safely inject Razorpay Key
+      'process.env.RAZORPAY_KEY_ID': JSON.stringify(env.RAZORPAY_KEY_ID || ''),
     },
     build: {
       outDir: 'dist',
