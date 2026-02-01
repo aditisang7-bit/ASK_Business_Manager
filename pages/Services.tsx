@@ -103,56 +103,58 @@ const ServicesPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
-            <tr>
-              <th className="p-4">{t('common_name')}</th>
-              <th className="p-4">{t('common_desc')}</th>
-              <th className="p-4">{t('common_price')}</th>
-              <th className="p-4">{t('common_duration')}</th>
-              <th className="p-4 text-right">{t('common_actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
-            {services.map(s => (
-              <tr key={s.id} className="hover:bg-slate-50 transition-colors group">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    {s.image ? (
-                      <img src={s.image} alt="" className="w-10 h-10 rounded-md object-cover border border-gray-100" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-400">
-                        <i className="fa-solid fa-scissors"></i>
-                      </div>
-                    )}
-                    <span className="font-bold text-slate-800">{s.name}</span>
-                  </div>
-                </td>
-                <td className="p-4 text-gray-500 truncate max-w-xs">{s.description || '-'}</td>
-                <td className="p-4 font-medium text-green-700">{formatINR(s.price)}</td>
-                <td className="p-4 text-gray-500">{s.durationMinutes} min</td>
-                <td className="p-4 text-right">
-                  <div className="flex justify-end gap-3">
-                    <button 
-                      onClick={() => openEditModal(s)} 
-                      className="text-slate-400 hover:text-indigo-600 transition-colors"
-                      title={t('common_edit')}
-                    >
-                      <i className="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(s.id)} 
-                      className="text-slate-400 hover:text-red-600 transition-colors"
-                      title={t('common_delete')}
-                    >
-                      <i className="fa-solid fa-trash"></i>
-                    </button>
-                  </div>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+              <tr>
+                <th className="p-4">{t('common_name')}</th>
+                <th className="p-4">{t('common_desc')}</th>
+                <th className="p-4">{t('common_price')}</th>
+                <th className="p-4">{t('common_duration')}</th>
+                <th className="p-4 text-right">{t('common_actions')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-sm">
+              {services.map(s => (
+                <tr key={s.id} className="hover:bg-slate-50 transition-colors group">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      {s.image ? (
+                        <img src={s.image} alt="" className="w-10 h-10 rounded-md object-cover border border-gray-100" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-400">
+                          <i className="fa-solid fa-scissors"></i>
+                        </div>
+                      )}
+                      <span className="font-bold text-slate-800">{s.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-gray-500 truncate max-w-xs">{s.description || '-'}</td>
+                  <td className="p-4 font-medium text-green-700">{formatINR(s.price)}</td>
+                  <td className="p-4 text-gray-500">{s.durationMinutes} min</td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-3">
+                      <button 
+                        onClick={() => openEditModal(s)} 
+                        className="text-slate-400 hover:text-indigo-600 transition-colors"
+                        title={t('common_edit')}
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i>
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(s.id)} 
+                        className="text-slate-400 hover:text-red-600 transition-colors"
+                        title={t('common_delete')}
+                      >
+                        <i className="fa-solid fa-trash"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modal */}

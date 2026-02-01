@@ -10,8 +10,14 @@ const StaffPage: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentStaffId, setCurrentStaffId] = useState<string | null>(null);
   
-  // Form State
-  const [formData, setFormData] = useState({ name: '', phone: '', role: UserRole.STAFF, commissionRate: 10, avatar: '' });
+  // Form State - Role initialized as string to support custom entries
+  const [formData, setFormData] = useState<{
+    name: string;
+    phone: string;
+    role: string;
+    commissionRate: number;
+    avatar: string;
+  }>({ name: '', phone: '', role: UserRole.STAFF, commissionRate: 10, avatar: '' });
   
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -66,7 +72,7 @@ const StaffPage: React.FC = () => {
         ...existing,
         name: formData.name,
         phone: formData.phone,
-        role: formData.role,
+        role: formData.role, // Custom string allowed
         commissionRate: Number(formData.commissionRate),
         avatar: finalAvatar
       };
@@ -77,7 +83,7 @@ const StaffPage: React.FC = () => {
         id: Date.now().toString(),
         name: formData.name,
         phone: formData.phone,
-        role: formData.role,
+        role: formData.role, // Custom string allowed
         commissionRate: Number(formData.commissionRate),
         status: 'active',
         attendanceToday: false, // Default absent when created
@@ -178,14 +184,28 @@ const StaffPage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-600 mb-1">{t('common_phone')}</label>
                 <input className="w-full border rounded p-2" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder="+91 98765..." />
               </div>
+              
+              {/* Role Input with Datalist for Suggestions */}
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">{t('staff_role')}</label>
-                <select className="w-full border rounded p-2" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value as UserRole})}>
-                  <option value={UserRole.STAFF}>Staff</option>
-                  <option value={UserRole.MANAGER}>Manager</option>
-                  <option value={UserRole.OWNER}>Owner</option>
-                </select>
+                <input 
+                  list="roles-list"
+                  className="w-full border rounded p-2"
+                  value={formData.role}
+                  onChange={e => setFormData({...formData, role: e.target.value})}
+                  placeholder="Select or type role..."
+                />
+                <datalist id="roles-list">
+                  <option value={UserRole.STAFF} />
+                  <option value={UserRole.MANAGER} />
+                  <option value={UserRole.OWNER} />
+                  <option value="Receptionist" />
+                  <option value="Senior Stylist" />
+                  <option value="Junior Stylist" />
+                  <option value="Helper" />
+                </datalist>
               </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-600 mb-1">{t('staff_commission')}</label>
                 <input type="number" className="w-full border rounded p-2" value={formData.commissionRate} onChange={e => setFormData({...formData, commissionRate: parseInt(e.target.value)})} />

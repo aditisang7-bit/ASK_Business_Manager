@@ -111,55 +111,57 @@ const Customers: React.FC = () => {
            </div>
         </div>
 
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
-            <tr>
-              <th className="p-4">{t('appt_customer')}</th>
-              <th className="p-4">Contact</th>
-              <th className="p-4">{t('cust_visits')}</th>
-              <th className="p-4">{t('cust_loyalty')}</th>
-              <th className="p-4">{t('cust_last_visit')}</th>
-              <th className="p-4 text-right">{t('common_actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm">
-            {filtered.map(c => (
-              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    {c.photo ? (
-                      <img src={c.photo} alt={c.name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                        {c.name.charAt(0)}
-                      </div>
-                    )}
-                    <span className="font-bold text-slate-800">{c.name}</span>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <div className="text-slate-900">{c.phone}</div>
-                  <div className="text-xs text-gray-400">{c.email}</div>
-                </td>
-                <td className="p-4">{c.totalVisits}</td>
-                <td className="p-4">
-                  <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-bold text-xs">
-                    {c.loyaltyPoints} pts
-                  </span>
-                </td>
-                <td className="p-4 text-gray-500">{c.lastVisit || 'N/A'}</td>
-                <td className="p-4 text-right flex justify-end gap-3">
-                  <button onClick={() => handleOpenEdit(c)} className="text-slate-500 hover:text-indigo-600" title="Edit">
-                    <i className="fa-solid fa-pen-to-square"></i>
-                  </button>
-                  <button onClick={() => openHistory(c)} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50">
-                    {t('cust_view_history')}
-                  </button>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left min-w-[700px]">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold">
+              <tr>
+                <th className="p-4">{t('appt_customer')}</th>
+                <th className="p-4">Contact</th>
+                <th className="p-4">{t('cust_visits')}</th>
+                <th className="p-4">{t('cust_loyalty')}</th>
+                <th className="p-4">{t('cust_last_visit')}</th>
+                <th className="p-4 text-right">{t('common_actions')}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-100 text-sm">
+              {filtered.map(c => (
+                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      {c.photo ? (
+                        <img src={c.photo} alt={c.name} className="w-10 h-10 rounded-full object-cover border border-gray-200" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                          {c.name.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-bold text-slate-800">{c.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="text-slate-900">{c.phone}</div>
+                    <div className="text-xs text-gray-400">{c.email}</div>
+                  </td>
+                  <td className="p-4">{c.totalVisits}</td>
+                  <td className="p-4">
+                    <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded font-bold text-xs">
+                      {c.loyaltyPoints} pts
+                    </span>
+                  </td>
+                  <td className="p-4 text-gray-500">{c.lastVisit || 'N/A'}</td>
+                  <td className="p-4 text-right flex justify-end gap-3">
+                    <button onClick={() => handleOpenEdit(c)} className="text-slate-500 hover:text-indigo-600" title="Edit">
+                      <i className="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button onClick={() => openHistory(c)} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs border border-indigo-200 px-2 py-1 rounded hover:bg-indigo-50">
+                      {t('cust_view_history')}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Add/Edit Customer Modal */}

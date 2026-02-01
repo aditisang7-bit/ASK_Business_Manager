@@ -1,3 +1,4 @@
+
 export enum UserRole {
   OWNER = 'OWNER',
   MANAGER = 'MANAGER',
@@ -37,7 +38,7 @@ export interface Service {
 export interface Staff {
   id: string;
   name: string;
-  role: UserRole;
+  role: string; // Changed from UserRole to string to allow manual entry
   phone: string;
   commissionRate: number; // percentage
   avatar?: string;
@@ -106,6 +107,7 @@ export interface BusinessProfile {
   address: string;
   phone: string;
   email: string; // Owner email
+  password?: string; // Added for Supabase Auth Sync
   upiId: string;
   isSubscribed: boolean;
   subscriptionPlan: string;

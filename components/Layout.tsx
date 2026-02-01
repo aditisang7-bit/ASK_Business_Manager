@@ -36,6 +36,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   }, [isAuth, isAdmin, location.pathname, navigate, isPublicPage]);
 
+  const handleLogout = () => {
+    DB.logout();
+    navigate('/');
+  };
+
   // If it's a public page, just render children without the dashboard shell
   if (isPublicPage) {
     return <>{children}</>;
@@ -64,6 +69,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         { name: t('nav_customers'), path: '/customers', icon: 'fa-user-group' },
         { name: t('nav_staff'), path: '/staff', icon: 'fa-id-badge' },
         { name: t('nav_inventory'), path: '/inventory', icon: 'fa-boxes-stacked' },
+        { name: "Management", path: '/management', icon: 'fa-list-check' },
         { name: t('nav_settings'), path: '/settings', icon: 'fa-cog' },
       ];
     }
@@ -77,8 +83,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-50 text-gray-900 overflow-hidden">
       {/* Sidebar Desktop */}
-      <aside className={`hidden md:flex flex-col w-64 ${isAdmin ? 'bg-slate-900' : 'bg-slate-900'} text-white shadow-xl transition-all duration-300`}>
-        <div className="p-6 border-b border-slate-700 bg-slate-950">
+      <aside className={`hidden md:flex flex-col w-64 ${isAdmin ? 'bg-slate-900' : 'bg-slate-900'} text-white shadow-xl transition-all duration-300 h-full`}>
+        <div className="p-6 border-b border-slate-700 bg-slate-950 flex-shrink-0">
           <div className="flex items-center gap-2 mb-2">
              <div className={`w-8 h-8 ${isAdmin ? 'bg-red-600' : 'bg-indigo-500'} rounded flex items-center justify-center text-white font-bold`}>
                {isAdmin ? 'A' : profile.name.charAt(0)}
@@ -90,7 +96,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </p>
         </div>
         
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => (
             <Link
               key={item.path}
@@ -118,7 +124,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </nav>
         
-        <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-3">
+        <div className="p-4 bg-slate-950 border-t border-slate-800 space-y-3 flex-shrink-0">
           <div className="relative">
             <i className="fa-solid fa-language absolute left-3 top-2.5 text-slate-400 text-sm"></i>
             <select 
@@ -132,7 +138,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </select>
           </div>
 
-          <button onClick={() => { DB.logout(); navigate('/'); }} className="flex items-center gap-3 text-slate-400 hover:text-white w-full px-4 py-2 hover:bg-slate-800 rounded transition-colors">
+          <button onClick={handleLogout} className="flex items-center gap-3 text-slate-400 hover:text-white w-full px-4 py-2 hover:bg-slate-800 rounded transition-colors">
             <i className="fa-solid fa-right-from-bracket"></i>
             <span className="text-sm">{t('nav_signout')}</span>
           </button>
@@ -143,10 +149,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 md:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}>
            <aside className="w-64 h-full bg-slate-900 text-white shadow-xl flex flex-col" onClick={e => e.stopPropagation()}>
-             <div className="p-6 border-b border-slate-700">
+             <div className="p-6 border-b border-slate-700 flex-shrink-0">
                 <span className="text-xl font-bold">{isAdmin ? 'Super Admin' : profile.name}</span>
              </div>
-             <nav className="flex-1 p-4 space-y-2">
+             <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {navItems.map((item) => (
                   <Link
                     key={item.path}
@@ -161,8 +167,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   </Link>
                 ))}
              </nav>
-             <div className="p-4 border-t border-slate-800">
-               <button onClick={() => { DB.logout(); navigate('/'); }} className="text-slate-400 text-sm flex items-center gap-2">
+             <div className="p-4 border-t border-slate-800 flex-shrink-0">
+               <button onClick={handleLogout} className="text-slate-400 text-sm flex items-center gap-2">
                  <i className="fa-solid fa-right-from-bracket"></i> {t('nav_signout')}
                </button>
              </div>

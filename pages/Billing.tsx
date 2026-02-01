@@ -22,6 +22,7 @@ const Billing: React.FC = () => {
   });
 
   const [marketingMsg, setMarketingMsg] = useState('');
+  const [marketingPhone, setMarketingPhone] = useState('');
   const [loadingAi, setLoadingAi] = useState(false);
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -169,6 +170,14 @@ const Billing: React.FC = () => {
     // AI Marketing Trigger
     setLoadingAi(true);
     const customer = DB.getCustomers().find(c => c.id === selectedAppt.customerId);
+    
+    // Store sanitized phone number for WhatsApp button
+    if (customer && customer.phone) {
+        setMarketingPhone(customer.phone.replace(/\D/g, ''));
+    } else {
+        setMarketingPhone('');
+    }
+
     const msg = await generateMarketingMessage(customer?.name || 'Customer', service.name);
     setMarketingMsg(msg);
     setLoadingAi(false);
@@ -572,7 +581,13 @@ const Billing: React.FC = () => {
              </div>
              <div className="flex gap-3">
                 <button 
-                  onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(marketingMsg)}`, '_blank')}
+                  onClick={() => {
+                    // Open WhatsApp with direct number if available, else standard share
+                    const url = marketingPhone 
+                      ? `https://wa.me/${marketingPhone}?text=${encodeURIComponent(marketingMsg)}`
+                      : `https://wa.me/?text=${encodeURIComponent(marketingMsg)}`;
+                    window.open(url, '_blank');
+                  }}
                   className="w-full py-2 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 flex items-center justify-center gap-2"
                 >
                   <i className="fa-brands fa-whatsapp"></i> Send via WhatsApp

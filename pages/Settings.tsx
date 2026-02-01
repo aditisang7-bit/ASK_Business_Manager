@@ -20,15 +20,28 @@ const Settings: React.FC = () => {
 
   const loadRazorpay = () => {
     return new Promise((resolve) => {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      let script = document.getElementById('razorpay-checkout-js') as HTMLScriptElement;
+      if (!script) {
+        script = document.createElement('script');
+        script.id = 'razorpay-checkout-js';
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        document.body.appendChild(script);
+      }
+      const onLoad = () => resolve(true);
+      const onError = () => {
+          console.error("Failed to load Razorpay SDK");
+          resolve(false);
+      };
+      script.addEventListener('load', onLoad);
+      script.addEventListener('error', onError);
     });
   };
 
-  const handleSubscribe = async (planName: string, amount: number) => {
+  const handleSubscribe = async (planId: string, planName: string, amount: number) => {
     if (amount === 0) {
         const updated = { ...profile, isSubscribed: false, subscriptionPlan: 'free' };
         setProfile(updated);
@@ -37,69 +50,65 @@ const Settings: React.FC = () => {
         return;
     }
 
-    // 1. Check for API Key
-    const keyId = process.env.RAZORPAY_KEY_ID;
+    console.log("Initiating payment for:", planName);
+
+    // Get API Key from Environment
+    const keyId = process.env.VITE_RAZORPAY_KEY_ID;
+    
     if (!keyId) {
-        // Fallback for demo/dev if key is missing, or alert user to config
-        console.warn("RAZORPAY_KEY_ID is missing in environment variables.");
-        alert("Payment Gateway Error: Configuration missing (RAZORPAY_KEY_ID). \n\nFor demo purposes, we will simulate a success.");
-        
-        // Simulating success for demo resilience
-        const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() };
-        setProfile(updated);
-        DB.saveProfile(updated);
-        showToast(`Upgraded to ${planName} (Demo Mode)!`, "success");
+        console.warn("VITE_RAZORPAY_KEY_ID is missing.");
+        alert("Payment Configuration Missing.\nPlease add VITE_RAZORPAY_KEY_ID to your Environment Variables.");
         return;
     }
 
-    // 2. Load SDK
-    const res = await loadRazorpay();
-    if (!res) {
-        showToast("Failed to load payment gateway. Check internet connection.", "error");
+    // Load Razorpay SDK
+    const isLoaded = await loadRazorpay();
+    if (!isLoaded) {
+        showToast("Failed to load payment gateway. Please check your internet connection.", "error");
         return;
     }
 
-    // 3. Open Razorpay Checkout
-    const options = {
-        key: keyId,
-        amount: amount * 100, // Amount is in currency subunits (Paise)
-        currency: "INR",
-        name: "ASK Business Manager",
-        description: `Subscription for ${planName} (${billingCycle})`,
-        image: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png", // App Logo
-        handler: function (response: any) {
-             // Payment Success
-             console.log("Payment Success", response);
-             
-             // Update Local State & DB
-             const updated = { ...profile, isSubscribed: true, subscriptionPlan: planName.toLowerCase() };
-             setProfile(updated);
-             DB.saveProfile(updated);
-             
-             showToast(`Payment Successful! Welcome to ${planName}.`, "success");
-             // Optional: Send payment ID to backend to verify signature
-             console.log("Pay ID:", response.razorpay_payment_id);
-        },
-        prefill: {
-            name: profile.name,
-            email: profile.email,
-            contact: profile.phone
-        },
-        theme: {
-            color: "#4f46e5"
-        },
-        modal: {
-            ondismiss: function() {
-                showToast("Payment Cancelled", "info");
+    try {
+        const options = {
+            key: keyId, 
+            amount: amount * 100, // Amount in paise
+            currency: "INR",
+            name: "ASK Business Manager",
+            description: `Subscription: ${planName} (${billingCycle})`,
+            image: "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
+            handler: function (response: any) {
+                console.log("Payment Success:", response);
+                const updated = { ...profile, isSubscribed: true, subscriptionPlan: planId };
+                setProfile(updated);
+                DB.saveProfile(updated);
+                showToast(`Payment Successful! Welcome to ${planName}.`, "success");
+            },
+            prefill: {
+                name: profile.name,
+                email: profile.email,
+                contact: profile.phone
+            },
+            theme: { color: "#4f46e5" },
+            modal: {
+                ondismiss: function() { showToast("Payment Cancelled", "info"); }
             }
-        }
-    };
+        };
 
-    const paymentObject = new (window as any).Razorpay(options);
-    paymentObject.on('payment.failed', function (response: any){
-        showToast(`Payment Failed: ${response.error.description}`, "error");
-    });
-    paymentObject.open();
+        if (!(window as any).Razorpay) {
+            showToast("Payment SDK not ready. Please try again.", "error");
+            return;
+        }
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on('payment.failed', function (response: any){
+            console.error("Payment Failed", response.error);
+            showToast(`Payment Failed: ${response.error.description}`, "error");
+        });
+        rzp.open();
+    } catch (error) {
+        console.error("Error initializing Razorpay:", error);
+        showToast("Error initializing payment. Contact support.", "error");
+    }
   };
 
   const toggleNotify = (key: keyof typeof profile.notificationSettings) => {
@@ -116,7 +125,6 @@ const Settings: React.FC = () => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  // Competitive Indian Market Pricing
   const PLANS = [
     {
       id: 'free',
@@ -130,7 +138,7 @@ const Settings: React.FC = () => {
       id: 'starter',
       name: 'Starter',
       price: { monthly: 999, yearly: 9999 },
-      features: ['Unlimited Appointments', '3 Staff Members', 'WhatsApp Reminders', 'GST Invoicing', 'Basic AI Insights'],
+      features: ['Unlimited Appointments', '3 Staff Members', 'GST Invoicing', 'Basic AI Insights'],
       color: 'blue',
       recommended: true
     },
@@ -263,7 +271,7 @@ const Settings: React.FC = () => {
                         </ul>
 
                         <button 
-                          onClick={() => handleSubscribe(plan.name, price)}
+                          onClick={() => handleSubscribe(plan.id, plan.name, price)}
                           disabled={isCurrent}
                           className={`w-full py-3 rounded-xl font-bold transition-colors ${
                             isCurrent ? 'bg-green-100 text-green-700 cursor-default' :

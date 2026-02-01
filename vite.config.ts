@@ -4,15 +4,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   // Load env file based on `mode` in the current working directory.
   const env = loadEnv(mode, (process as any).cwd(), '');
+  
   return {
     plugins: [react()],
+    // Polyfill process.env with loaded env variables so client code can use process.env.VITE_...
     define: {
-      // Prevents "process is not defined" error in browser
-      'process.env': {}, 
-      // Safely inject API key
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || ''),
-      // Safely inject Razorpay Key
-      'process.env.RAZORPAY_KEY_ID': JSON.stringify(env.RAZORPAY_KEY_ID || ''),
+      'process.env': env, 
     },
     build: {
       outDir: 'dist',
@@ -27,7 +24,9 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      host: true
+      host: '0.0.0.0', // Listen on all network interfaces
+      port: 3000,      // Match Supabase Site URL
+      strictPort: true // Do not auto-switch to 3001 if 3000 is taken.
     }
   };
 });

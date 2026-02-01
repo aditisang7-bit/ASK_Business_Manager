@@ -43,22 +43,23 @@ const Management: React.FC = () => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-slate-800">Management</h2>
       
-      <div className="flex border-b border-gray-200">
+      {/* Scrollable Tabs Container */}
+      <div className="flex border-b border-gray-200 overflow-x-auto whitespace-nowrap scrollbar-hide">
         <button 
           onClick={() => setActiveTab('staff')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'staff' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors flex-shrink-0 ${activeTab === 'staff' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           Staff Members
         </button>
         <button 
           onClick={() => setActiveTab('services')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'services' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors flex-shrink-0 ${activeTab === 'services' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           Services Menu
         </button>
         <button 
           onClick={() => setActiveTab('customers')}
-          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${activeTab === 'customers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors flex-shrink-0 ${activeTab === 'customers' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
         >
           Customer Database
         </button>
@@ -92,31 +93,33 @@ const Management: React.FC = () => {
               <h3 className="font-bold text-lg">Services</h3>
               <button onClick={handleAddService} className="bg-slate-900 text-white px-3 py-1.5 rounded text-sm hover:bg-slate-700">Add Service</button>
             </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 text-xs uppercase text-gray-500">
-                  <th className="p-3">Name</th>
-                  <th className="p-3">Price</th>
-                  <th className="p-3">Duration</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-sm">
-                {services.map(s => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="p-3 font-medium">{s.name}</td>
-                    <td className="p-3">${s.price}</td>
-                    <td className="p-3">{s.durationMinutes} min</td>
-                    <td className="p-3 text-right">
-                      <button className="text-red-500 hover:text-red-700" onClick={() => {
-                        DB.deleteService(s.id);
-                        setServices(DB.getServices());
-                      }}><i className="fa-solid fa-trash"></i></button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[500px]">
+                <thead>
+                  <tr className="bg-gray-50 text-xs uppercase text-gray-500">
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Price</th>
+                    <th className="p-3">Duration</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y text-sm">
+                  {services.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="p-3 font-medium">{s.name}</td>
+                      <td className="p-3">${s.price}</td>
+                      <td className="p-3">{s.durationMinutes} min</td>
+                      <td className="p-3 text-right">
+                        <button className="text-red-500 hover:text-red-700" onClick={() => {
+                          DB.deleteService(s.id);
+                          setServices(DB.getServices());
+                        }}><i className="fa-solid fa-trash"></i></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -129,31 +132,33 @@ const Management: React.FC = () => {
                 <i className="fa-solid fa-search absolute left-2.5 top-2.5 text-gray-400 text-xs"></i>
               </div>
             </div>
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-gray-50 text-xs uppercase text-gray-500">
-                  <th className="p-3">Name</th>
-                  <th className="p-3">Contact</th>
-                  <th className="p-3">Visits</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y text-sm">
-                {customers.map(c => (
-                  <tr key={c.id} className="hover:bg-gray-50">
-                    <td className="p-3 font-medium">{c.name}</td>
-                    <td className="p-3">
-                      <div className="text-xs">{c.phone}</div>
-                      <div className="text-xs text-gray-400">{c.email}</div>
-                    </td>
-                    <td className="p-3">{c.totalVisits}</td>
-                    <td className="p-3 text-right">
-                      <button className="text-indigo-600 hover:underline">History</button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left min-w-[600px]">
+                <thead>
+                  <tr className="bg-gray-50 text-xs uppercase text-gray-500">
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Contact</th>
+                    <th className="p-3">Visits</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y text-sm">
+                  {customers.map(c => (
+                    <tr key={c.id} className="hover:bg-gray-50">
+                      <td className="p-3 font-medium">{c.name}</td>
+                      <td className="p-3">
+                        <div className="text-xs">{c.phone}</div>
+                        <div className="text-xs text-gray-400">{c.email}</div>
+                      </td>
+                      <td className="p-3">{c.totalVisits}</td>
+                      <td className="p-3 text-right">
+                        <button className="text-indigo-600 hover:underline">History</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

@@ -18,7 +18,6 @@ const Pricing: React.FC = () => {
         '50 Appointments per month',
         '1 Staff Login',
         'Basic Booking System',
-        'Manual WhatsApp Reminders',
         'Limited Reports'
       ],
       highlight: false,
@@ -32,7 +31,6 @@ const Pricing: React.FC = () => {
       features: [
         'Unlimited Appointments',
         '3 Staff Logins',
-        'Automated WhatsApp Reminders',
         'GST Invoicing & Billing',
         'Basic AI Business Insights',
         'Email Support'
