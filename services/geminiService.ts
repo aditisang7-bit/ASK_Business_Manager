@@ -1,11 +1,34 @@
 import { GoogleGenAI } from "@google/genai";
 import { Invoice, Appointment } from '../types';
 
-// Initialize the AI client using process.env.API_KEY as per strict guidelines.
-// We assume process.env.API_KEY is available and valid in the environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safe Environment Variable Accessor
+const getEnv = (key: string) => {
+  if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+    const val = (import.meta as any).env[key];
+    if (val) return val;
+  }
+  if (typeof process !== 'undefined' && process.env) {
+    return process.env[key];
+  }
+  return '';
+};
+
+// Safely initialize the AI client
+let ai: GoogleGenAI | null = null;
+try {
+  const apiKey = getEnv('VITE_GEMINI_API_KEY');
+  if (apiKey) {
+    ai = new GoogleGenAI({ apiKey });
+  } else {
+    console.warn("VITE_GEMINI_API_KEY is missing. AI features will be disabled.");
+  }
+} catch (error) {
+  console.error("Failed to initialize Gemini Client", error);
+}
 
 export const generateMarketingMessage = async (customerName: string, serviceName: string): Promise<string> => {
+  if (!ai) return `Hi ${customerName}, thanks for visiting! We hope you enjoyed your ${serviceName}.`;
+
   try {
     const model = 'gemini-3-flash-preview';
     const prompt = `Write a short, friendly, and professional WhatsApp message for a salon customer named ${customerName} who just had a ${serviceName}. 
@@ -24,6 +47,8 @@ export const generateMarketingMessage = async (customerName: string, serviceName
 };
 
 export const generateBusinessInsights = async (invoices: Invoice[], appointments: Appointment[]): Promise<string> => {
+  if (!ai) return "AI Insights unavailable. Please configure API Key.";
+
   try {
     const totalRev = invoices.reduce((acc, curr) => acc + curr.total, 0);
     const count = appointments.length;
@@ -40,12 +65,13 @@ export const generateBusinessInsights = async (invoices: Invoice[], appointments
 
     return response.text || "Analyze peak hours to optimize staff scheduling.";
   } catch (error) {
-    console.error("Gemini Insights Error:", error);
     return "Focus on customer retention and upselling high-margin services.";
   }
 };
 
 export const analyzeCustomerFace = async (base64Image: string): Promise<any> => {
+  if (!ai) throw new Error("AI Client not initialized");
+
   try {
     // Robust Base64 extraction to handle data URLs properly
     const matches = base64Image.match(/^data:(.+);base64,(.+)$/);
@@ -76,7 +102,7 @@ export const analyzeCustomerFace = async (base64Image: string): Promise<any> => 
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview', // Use the multimodal model for vision analysis
+      model: 'gemini-3-flash-preview',
       contents: {
         parts: [
           { inlineData: { mimeType: mimeType, data: data } },

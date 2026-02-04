@@ -18,6 +18,17 @@ const Settings: React.FC = () => {
     showToast(t('common_saved'), "success");
   };
 
+  const getEnv = (key: string) => {
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+        const val = (import.meta as any).env[key];
+        if (val) return val;
+    }
+    if (typeof process !== 'undefined' && process.env) {
+        return process.env[key];
+    }
+    return '';
+  };
+
   const loadRazorpay = () => {
     return new Promise((resolve) => {
       if ((window as any).Razorpay) {
@@ -52,8 +63,8 @@ const Settings: React.FC = () => {
 
     console.log("Initiating payment for:", planName);
 
-    // Get API Key from Environment
-    const keyId = process.env.VITE_RAZORPAY_KEY_ID;
+    // Get API Key safely
+    const keyId = getEnv('VITE_RAZORPAY_KEY_ID');
     
     if (!keyId) {
         console.warn("VITE_RAZORPAY_KEY_ID is missing.");

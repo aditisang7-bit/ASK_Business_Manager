@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    // Polyfill process.env with loaded env variables so client code can use process.env.VITE_...
+    // Polyfill process.env with loaded env variables
     define: {
       'process.env': env, 
     },

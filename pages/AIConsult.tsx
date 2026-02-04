@@ -37,11 +37,7 @@ const AIConsult: React.FC = () => {
     } catch (err: any) {
       console.error("Error accessing camera:", err);
       setIsCameraOpen(false);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        showToast("Camera permission denied. Please enable access in your browser settings.", "error");
-      } else {
-        showToast("Could not access camera. Please try uploading a photo instead.", "error");
-      }
+      showToast("Camera access required for the Magic Mirror experience.", "error");
     }
   };
 
@@ -49,7 +45,6 @@ const AIConsult: React.FC = () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
       if (context) {
-        // Match canvas size to video size
         canvasRef.current.width = videoRef.current.videoWidth;
         canvasRef.current.height = videoRef.current.videoHeight;
         context.drawImage(videoRef.current, 0, 0);
@@ -57,10 +52,11 @@ const AIConsult: React.FC = () => {
         const dataUrl = canvasRef.current.toDataURL('image/jpeg', 0.8);
         setCapturedImage(dataUrl);
         setIsCameraOpen(false);
-        
-        // Stop all video streams
         const stream = videoRef.current.srcObject as MediaStream;
         stream?.getTracks().forEach(track => track.stop());
+        
+        // Auto-run analysis for smoother UX
+        runAnalysis(dataUrl);
       }
     }
   };
@@ -70,30 +66,28 @@ const AIConsult: React.FC = () => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCapturedImage(reader.result as string);
+        const img = reader.result as string;
+        setCapturedImage(img);
         setAnalysisResult(null);
+        runAnalysis(img);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const runAnalysis = async () => {
-    if (!capturedImage) return;
-    
+  const runAnalysis = async (imgData: string) => {
     setIsAnalyzing(true);
     try {
-      const result = await analyzeCustomerFace(capturedImage);
+      const result = await analyzeCustomerFace(imgData);
       setAnalysisResult(result);
       
-      // Save consultation to DB (Supabase/Local)
       DB.saveAIConsultation({
         id: Date.now().toString(),
         date: new Date().toISOString(),
-        image: capturedImage,
+        image: imgData,
         result: result
       });
       
-      showToast("Analysis Complete!", "success");
     } catch (error) {
       showToast("Analysis failed. Try again.", "error");
     } finally {
@@ -103,7 +97,6 @@ const AIConsult: React.FC = () => {
 
   const handleBookClick = (rec: any) => {
     setSelectedRec(rec);
-    // Reset form or try to auto-fill if we had facial recognition identity
     setCustomerForm({ name: '', phone: '' });
     setIsBookingModalOpen(true);
   };
@@ -114,7 +107,6 @@ const AIConsult: React.FC = () => {
         return;
     }
 
-    // 1. Check or Create Customer
     let customer = DB.getCustomers().find(c => c.phone === customerForm.phone);
     let customerId = customer?.id;
 
@@ -125,26 +117,19 @@ const AIConsult: React.FC = () => {
             phone: customerForm.phone,
             totalVisits: 0,
             loyaltyPoints: 0,
-            photo: capturedImage || undefined // Attach the AI analyzed photo to profile
+            photo: capturedImage || undefined
         };
         DB.saveCustomer(newCust);
         customerId = newCust.id;
-        showToast("New Customer Profile Created!", "success");
-    } else {
-        // Update name if different? Keep existing for now.
-        showToast(`Welcome back, ${customer.name}!`, "success");
     }
 
-    // 2. Resolve Service
-    // Attempt to match the recommended service name with existing services
     const services = DB.getServices();
-    // Simple fuzzy match logic
     const matchedService = services.find(s => 
         s.name.toLowerCase().includes(selectedRec.service.toLowerCase()) || 
         selectedRec.service.toLowerCase().includes(s.name.toLowerCase())
     );
 
-    const serviceId = matchedService ? matchedService.id : services[0]?.id; // Fallback to first service
+    const serviceId = matchedService ? matchedService.id : services[0]?.id;
     const notes = matchedService 
         ? `AI Recommendation: ${selectedRec.reason}` 
         : `AI Recommended: ${selectedRec.service}. Reason: ${selectedRec.reason}`;
@@ -154,11 +139,10 @@ const AIConsult: React.FC = () => {
         return;
     }
 
-    // 3. Create Appointment
     const newAppt: Appointment = {
         id: Date.now().toString(),
         customerId: customerId!,
-        staffId: DB.getStaff().filter(s => s.status === 'active')[0]?.id || '1', // Assign to first active staff
+        staffId: DB.getStaff().filter(s => s.status === 'active')[0]?.id || '1', 
         serviceId: serviceId,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}),
@@ -173,156 +157,152 @@ const AIConsult: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 animate-fade-in relative">
-      <div className="text-center">
-        <h2 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-          <i className="fa-solid fa-wand-magic-sparkles mr-2"></i>AI Smart Consultant
-        </h2>
-        <p className="text-gray-500 mt-2">
-          Let our AI analyze your features and recommend the perfect style.
-        </p>
+    <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] animate-fade-in relative bg-black rounded-3xl overflow-hidden shadow-2xl border border-gray-800">
+      
+      {/* Background Ambient Effects */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-600 rounded-full blur-[150px] opacity-20"></div>
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-600 rounded-full blur-[120px] opacity-20"></div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Input Section */}
-        <div className="bg-white p-6 rounded-2xl shadow-lg border border-indigo-50 flex flex-col items-center justify-center min-h-[400px]">
-          
-          {!capturedImage && !isCameraOpen && (
-            <div className="text-center space-y-6">
-               <div className="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center mx-auto text-indigo-400 text-5xl mb-4">
+      <div className="relative z-10 h-full flex flex-col lg:flex-row">
+        
+        {/* Left: The Mirror (Video/Image) */}
+        <div className="flex-1 relative flex flex-col justify-center items-center p-8 border-r border-white/10 bg-white/5 backdrop-blur-sm">
+           
+           <h2 className="absolute top-8 left-8 text-2xl font-bold text-white tracking-wider flex items-center gap-3">
+             <i className="fa-solid fa-wand-magic-sparkles text-purple-400"></i> AI Magic Mirror
+           </h2>
+
+           {!capturedImage && !isCameraOpen && (
+             <div className="text-center space-y-8 animate-float">
+               <div className="w-40 h-40 bg-white/10 rounded-full flex items-center justify-center mx-auto text-white/50 text-6xl ring-4 ring-white/5 backdrop-blur-md">
                  <i className="fa-solid fa-camera"></i>
                </div>
-               <div className="flex flex-col gap-3">
-                 <button onClick={startCamera} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-all hover:scale-105">
-                   <i className="fa-solid fa-camera mr-2"></i> Start Camera
+               <div className="flex flex-col gap-4 w-64 mx-auto">
+                 <button onClick={startCamera} className="bg-white text-black px-8 py-4 rounded-full font-bold shadow-lg hover:shadow-white/20 transition-all hover:scale-105">
+                   Start Session
                  </button>
-                 <span className="text-gray-400 text-sm">- OR -</span>
-                 <label className="cursor-pointer bg-white border border-gray-200 text-gray-700 px-8 py-3 rounded-xl font-bold hover:bg-gray-50 transition-all">
-                   <i className="fa-solid fa-upload mr-2"></i> Upload Photo
+                 <label className="cursor-pointer text-gray-400 hover:text-white text-sm font-medium transition-colors text-center">
                    <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                   Or Upload a Photo
                  </label>
-               </div>
-            </div>
-          )}
-
-          {isCameraOpen && (
-            <div className="relative w-full h-full flex flex-col items-center">
-              <video ref={videoRef} autoPlay playsInline muted className="w-full rounded-xl shadow-inner mb-4 max-h-[400px] object-cover" />
-              <button onClick={capturePhoto} className="absolute bottom-8 bg-white text-indigo-600 w-16 h-16 rounded-full border-4 border-indigo-100 flex items-center justify-center hover:scale-110 transition-all shadow-xl">
-                 <i className="fa-solid fa-camera text-2xl"></i>
-              </button>
-              <canvas ref={canvasRef} className="hidden" />
-            </div>
-          )}
-
-          {capturedImage && (
-            <div className="w-full flex flex-col items-center">
-              <img src={capturedImage} alt="Captured" className="rounded-xl shadow-lg max-h-[350px] object-cover mb-6 border-4 border-white" />
-              <div className="flex gap-4">
-                 <button onClick={() => setCapturedImage(null)} className="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium">
-                   Retake
-                 </button>
-                 <button 
-                  onClick={runAnalysis} 
-                  disabled={isAnalyzing}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 flex items-center gap-2"
-                >
-                   {isAnalyzing ? (
-                     <><i className="fa-solid fa-circle-notch fa-spin"></i> Analyzing...</>
-                   ) : (
-                     <><i className="fa-solid fa-bolt"></i> Analyze Now</>
-                   )}
-                 </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Results Section */}
-        <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 min-h-[400px] relative overflow-hidden">
-           {!analysisResult ? (
-             <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-center p-8">
-               <div>
-                 <i className="fa-solid fa-face-smile-wink text-6xl mb-4 opacity-20"></i>
-                 <p>Capture or upload a photo to see AI recommendations here.</p>
-               </div>
-             </div>
-           ) : (
-             <div className="space-y-6 relative z-10 animate-fade-in-up">
-               <div className="grid grid-cols-3 gap-4 mb-6">
-                 <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                   <p className="text-xs text-gray-500 uppercase font-bold">Face Shape</p>
-                   <p className="font-bold text-indigo-700">{analysisResult.faceShape}</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                   <p className="text-xs text-gray-500 uppercase font-bold">Skin Tone</p>
-                   <p className="font-bold text-indigo-700">{analysisResult.skinTone}</p>
-                 </div>
-                 <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                   <p className="text-xs text-gray-500 uppercase font-bold">Est. Age</p>
-                   <p className="font-bold text-indigo-700">{analysisResult.ageGroup}</p>
-                 </div>
-               </div>
-
-               <h3 className="font-bold text-lg text-slate-800 border-b pb-2">Top Recommendations</h3>
-               <div className="space-y-4">
-                 {analysisResult.recommendations.map((rec: any, index: number) => (
-                   <div key={index} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-purple-500 flex justify-between items-center group hover:shadow-md transition-all">
-                      <div>
-                        <h4 className="font-bold text-slate-800">{rec.service}</h4>
-                        <p className="text-sm text-gray-500 mt-1">{rec.reason}</p>
-                      </div>
-                      <button 
-                        onClick={() => handleBookClick(rec)}
-                        className="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold hover:bg-purple-700 shadow-sm"
-                      >
-                        Book
-                      </button>
-                   </div>
-                 ))}
-               </div>
-               
-               <div className="mt-8 p-4 bg-indigo-900 text-indigo-100 rounded-xl text-sm flex items-start gap-3">
-                 <i className="fa-solid fa-robot mt-1"></i>
-                 <p>AI analysis is based on visual features. Results may vary lighting conditions.</p>
                </div>
              </div>
            )}
+
+           {isCameraOpen && (
+             <div className="relative w-full max-w-lg aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-white/20">
+               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+               <div className="absolute bottom-6 left-0 w-full flex justify-center">
+                 <button onClick={capturePhoto} className="w-16 h-16 bg-white rounded-full border-4 border-gray-300 ring-4 ring-white/30 flex items-center justify-center hover:scale-110 transition-transform"></button>
+               </div>
+               <canvas ref={canvasRef} className="hidden" />
+             </div>
+           )}
+
+           {capturedImage && (
+             <div className="relative w-full max-w-lg aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl border border-white/20 group">
+               <img src={capturedImage} alt="Captured" className="w-full h-full object-cover" />
+               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                 <button onClick={() => setCapturedImage(null)} className="px-6 py-2 bg-white/20 text-white border border-white/50 rounded-full hover:bg-white hover:text-black transition-all">
+                   Retake Photo
+                 </button>
+               </div>
+               
+               {isAnalyzing && (
+                 <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center backdrop-blur-md z-20">
+                    <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-indigo-200 font-mono animate-pulse">Scanning Facial Features...</p>
+                 </div>
+               )}
+             </div>
+           )}
         </div>
+
+        {/* Right: The Data (HUD) */}
+        <div className="lg:w-[450px] bg-black/40 backdrop-blur-md p-8 flex flex-col border-l border-white/5 overflow-y-auto">
+          
+          {!analysisResult ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 text-center space-y-4">
+              <i className="fa-solid fa-fingerprint text-5xl opacity-30"></i>
+              <p className="text-sm uppercase tracking-widest font-mono">Waiting for input...</p>
+            </div>
+          ) : (
+            <div className="space-y-8 animate-fade-in-up">
+              
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-white/5 border border-white/10 p-3 rounded-xl text-center">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Face Shape</p>
+                  <p className="text-white font-bold">{analysisResult.faceShape}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-xl text-center">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Complexion</p>
+                  <p className="text-white font-bold">{analysisResult.skinTone}</p>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-3 rounded-xl text-center">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Est. Age</p>
+                  <p className="text-white font-bold">{analysisResult.ageGroup}</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-indigo-400 font-bold uppercase text-xs tracking-widest mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                  AI Recommendations
+                </h3>
+                <div className="space-y-4">
+                  {analysisResult.recommendations.map((rec: any, index: number) => (
+                    <div key={index} className="bg-gradient-to-r from-white/10 to-transparent p-4 rounded-xl border-l-2 border-indigo-500 hover:bg-white/15 transition-colors group">
+                       <h4 className="font-bold text-white text-lg">{rec.service}</h4>
+                       <p className="text-xs text-gray-400 mt-2 leading-relaxed">{rec.reason}</p>
+                       <button 
+                         onClick={() => handleBookClick(rec)}
+                         className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold uppercase tracking-wide opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all"
+                       >
+                         Book Now
+                       </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
+
       </div>
 
-      {/* Booking Confirmation Modal */}
+      {/* Dark Themed Booking Modal */}
       {isBookingModalOpen && selectedRec && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-scale-in">
-             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-xl font-bold text-slate-800">Confirm Booking</h3>
-               <button onClick={() => setIsBookingModalOpen(false)} className="text-gray-400 hover:text-gray-600"><i className="fa-solid fa-times text-lg"></i></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-scale-in text-white">
+             <div className="flex justify-between items-center mb-6">
+               <h3 className="text-xl font-bold">Confirm Booking</h3>
+               <button onClick={() => setIsBookingModalOpen(false)} className="text-gray-400 hover:text-white"><i className="fa-solid fa-times"></i></button>
              </div>
 
-             <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 mb-6">
-                <p className="text-xs text-purple-600 font-bold uppercase mb-1">Service to Book</p>
-                <h4 className="text-lg font-bold text-purple-900">{selectedRec.service}</h4>
-                <p className="text-sm text-purple-700 mt-1 italic">"{selectedRec.reason}"</p>
+             <div className="bg-indigo-900/30 p-4 rounded-xl border border-indigo-500/30 mb-6">
+                <p className="text-xs text-indigo-400 font-bold uppercase mb-1">Service</p>
+                <h4 className="text-lg font-bold text-white">{selectedRec.service}</h4>
              </div>
 
-             <div className="space-y-4 mb-6">
-               <p className="text-sm text-gray-600">Please confirm user details to proceed with the appointment.</p>
+             <div className="space-y-4 mb-8">
                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Customer Name</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">Customer Name</label>
                   <input 
                     type="text" 
-                    className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="Enter Name"
                     value={customerForm.name}
                     onChange={e => setCustomerForm({...customerForm, name: e.target.value})}
                   />
                </div>
                <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Phone Number</label>
+                  <label className="block text-xs font-bold text-gray-400 mb-1">Phone Number</label>
                   <input 
                     type="tel" 
-                    className="w-full border rounded-lg p-2.5 outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                     placeholder="Enter Phone"
                     value={customerForm.phone}
                     onChange={e => setCustomerForm({...customerForm, phone: e.target.value})}
@@ -331,9 +311,9 @@ const AIConsult: React.FC = () => {
              </div>
 
              <div className="flex gap-3">
-               <button onClick={() => setIsBookingModalOpen(false)} className="flex-1 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium">Cancel</button>
-               <button onClick={handleConfirmBooking} className="flex-1 py-3 bg-purple-600 text-white rounded-lg font-bold shadow-lg hover:bg-purple-700">
-                 Approve & Book
+               <button onClick={() => setIsBookingModalOpen(false)} className="flex-1 py-3 text-gray-400 bg-gray-800 hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
+               <button onClick={handleConfirmBooking} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 shadow-lg shadow-indigo-500/20">
+                 Confirm
                </button>
              </div>
           </div>
