@@ -15,15 +15,21 @@ const getEnv = (key: string) => {
 const supabaseUrl = getEnv('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY');
 
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+// Robust check: Ensure variables exist AND are not default placeholders
+export const isSupabaseConfigured = !!(
+  supabaseUrl && 
+  supabaseAnonKey && 
+  !supabaseUrl.includes('your-project') &&
+  !supabaseUrl.includes('placeholder')
+);
 
 if (!isSupabaseConfigured) {
-  console.warn("Supabase credentials missing! App running in local-only mode.");
+  console.warn("Supabase credentials missing or placeholders detected. App running in local-only mode.");
 }
 
-// Initialize with fallback to prevent crash "supabaseUrl is required"
-// Network requests will fail if placeholders are used, so rely on isSupabaseConfigured check.
+// Initialize with fallback.
+// If isSupabaseConfigured is false, the app logic (in db.ts) prevents using this client for data sync.
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key'
+  (supabaseUrl && !supabaseUrl.includes('your-project')) ? supabaseUrl : 'https://placeholder.supabase.co', 
+  (supabaseAnonKey && !supabaseAnonKey.includes('your-anon-key')) ? supabaseAnonKey : 'placeholder-key'
 );

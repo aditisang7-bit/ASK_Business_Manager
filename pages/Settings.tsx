@@ -64,11 +64,11 @@ const Settings: React.FC = () => {
     console.log("Initiating payment for:", planName);
 
     // Get API Key safely
-    const keyId = getEnv('VITE_RAZORPAY_KEY_ID');
+    const keyId = getEnv('RAZORPAY_KEY_ID');
     
     if (!keyId) {
-        console.warn("VITE_RAZORPAY_KEY_ID is missing.");
-        alert("Payment Configuration Missing.\nPlease add VITE_RAZORPAY_KEY_ID to your Environment Variables.");
+        console.warn("RAZORPAY_KEY_ID is missing.");
+        alert("Payment Configuration Missing.\nPlease add RAZORPAY_KEY_ID to your Environment Variables.");
         return;
     }
 

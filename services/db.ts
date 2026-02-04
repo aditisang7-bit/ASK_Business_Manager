@@ -164,9 +164,7 @@ export const DB = {
   sendMagicLink: async (email: string) => {
     if (!isSupabaseConfigured) return { success: false, error: "Cloud setup incomplete" };
     try {
-      // Redirect strictly to /auth page to ensure listener picks up hash
       const redirectUrl = window.location.origin + '/auth';
-      
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
@@ -184,7 +182,7 @@ export const DB = {
     if (!isSupabaseConfigured) return { success: false, error: "Cloud setup incomplete" };
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + '/#/auth?type=recovery', // Redirects to Auth page with recovery flag
+        redirectTo: window.location.origin + '/#/auth?type=recovery', 
       });
       if (error) throw error;
       return { success: true };
@@ -203,22 +201,18 @@ export const DB = {
       return { success: false, error: e.message };
     }
   },
-  // ------------------------------------------
 
   // Real Cloud Login & Data Sync
   verifyUser: async (email: string, password?: string): Promise<{success: boolean, message?: string}> => {
-    // 1. Admin Bypass
     if (email === ADMIN_EMAIL && password === 'Admin@123') {
         DB.login(email);
         return { success: true };
     }
 
     if (!isSupabaseConfigured) {
-        // Fallback for local testing if env is missing
         return { success: false, message: "Cloud login unavailable (Env vars missing). Try Guest/Admin login." };
     }
 
-    // 2. Try Supabase Auth Login (Authentication Service)
     if (password) {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
             email,
@@ -227,10 +221,7 @@ export const DB = {
         
         if (authData.user && !authError) {
              console.log("Supabase Auth Login Successful");
-             // Store Auth Session
              localStorage.setItem(DB_KEYS.AUTH_SESSION, email);
-             
-             // Now fetch the profile from the database to ensure we have business details
              const { data: profileData } = await supabase
                 .from('business_profiles')
                 .select('*')
@@ -243,7 +234,6 @@ export const DB = {
                  return { success: true };
              }
         } else {
-             // If Supabase Auth fails, user might not be verified or credentials wrong
              console.warn("Supabase Auth Login Failed", authError?.message);
              if (authError?.message.includes("Email not confirmed")) {
                  return { success: false, message: "Please verify your email address before logging in." };
@@ -251,7 +241,6 @@ export const DB = {
         }
     }
 
-    // 3. Fallback: Check Database Table (Legacy/Demo/Local)
     try {
         const { data, error } = await supabase
             .from('business_profiles')
@@ -264,14 +253,11 @@ export const DB = {
             return { success: false, message: "Invalid credentials." };
         }
 
-        // Found user
         localStorage.setItem(DB_KEYS.AUTH_SESSION, data.email);
         localStorage.setItem(DB_KEYS.PROFILE, JSON.stringify(data));
         localStorage.removeItem(DB_KEYS.IS_ADMIN);
 
-        // 4. Sync All Data From Cloud (Non-blocking)
         DB.syncDataFromCloud(data.id);
-
         return { success: true };
     } catch (e) {
         console.error("Login Exception", e);
@@ -280,7 +266,6 @@ export const DB = {
     return { success: false, message: "Login failed." };
   },
 
-  // Syncs all tables from Supabase to LocalStorage
   syncDataFromCloud: async (businessId: string) => {
       if (!isSupabaseConfigured) return;
       console.log("Syncing data for business:", businessId);
@@ -301,7 +286,6 @@ export const DB = {
               supabase.from('invoices').select('*').eq('business_id', businessId)
           ]);
 
-          // Only update local storage if we got valid arrays (even empty ones) back
           if (Array.isArray(services)) localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify(services.map(mapService)));
           if (Array.isArray(staff)) localStorage.setItem(DB_KEYS.STAFF, JSON.stringify(staff.map(mapStaff)));
           if (Array.isArray(customers)) localStorage.setItem(DB_KEYS.CUSTOMERS, JSON.stringify(customers.map(mapCustomer)));
@@ -320,7 +304,6 @@ export const DB = {
     localStorage.setItem(DB_KEYS.AUTH_SESSION, guestEmail);
     localStorage.removeItem(DB_KEYS.IS_ADMIN);
     
-    // Ensure a default profile exists for the guest
     const currentProfile = localStorage.getItem(DB_KEYS.PROFILE);
     if (!currentProfile) {
         const guestProfile = { ...INITIAL_DATA.profile, name: 'Guest Salon Demo', email: guestEmail, id: 'guest_biz' };
@@ -332,12 +315,10 @@ export const DB = {
   },
 
   logout: () => {
-    // Clear Session Specific Keys only, preserving preferences like language
     localStorage.removeItem(DB_KEYS.AUTH_SESSION);
     localStorage.removeItem(DB_KEYS.PROFILE);
     localStorage.removeItem(DB_KEYS.IS_ADMIN);
     
-    // Clear Data to ensure no data leakage between users
     localStorage.removeItem(DB_KEYS.SERVICES);
     localStorage.removeItem(DB_KEYS.STAFF);
     localStorage.removeItem(DB_KEYS.CUSTOMERS);
@@ -346,14 +327,12 @@ export const DB = {
     localStorage.removeItem(DB_KEYS.INVENTORY);
     localStorage.removeItem(DB_KEYS.AI_CONSULTS);
 
-    // Also Sign out from Supabase Auth
     if (isSupabaseConfigured) {
         supabase.auth.signOut().then(() => console.log("Signed out from Supabase"));
     }
   },
 
   register: async (profile: BusinessProfile) => {
-    // 1. Create User in Supabase Auth (This makes them appear in the Dashboard)
     if (isSupabaseConfigured && profile.email && profile.password) {
         const { data, error: authError } = await supabase.auth.signUp({
             email: profile.email,
@@ -369,18 +348,15 @@ export const DB = {
         
         if (authError) {
              console.warn("Supabase Auth Registration Warning:", authError.message);
-             // If user already exists in Auth but not DB, we might fail here.
              if (!authError.message.includes("User already registered")) {
-                throw authError; // Block registration on real error
+                throw authError; 
              }
         }
     }
 
-    // 2. Save Profile Locally
     localStorage.setItem(DB_KEYS.PROFILE, JSON.stringify(profile));
     localStorage.setItem(DB_KEYS.AUTH_SESSION, profile.email);
 
-    // 3. Initialize Empty Data Stores Locally
     localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify([]));
     localStorage.setItem(DB_KEYS.STAFF, JSON.stringify([]));
     localStorage.setItem(DB_KEYS.CUSTOMERS, JSON.stringify([]));
@@ -388,10 +364,8 @@ export const DB = {
     localStorage.setItem(DB_KEYS.INVOICES, JSON.stringify([]));
     localStorage.setItem(DB_KEYS.INVENTORY, JSON.stringify([]));
 
-    // 4. Sync Profile to Database Table
     if (isSupabaseConfigured) {
       try {
-        // Create Profile in the Table
         const { error } = await supabase.from('business_profiles').upsert({
           id: profile.id,
           name: profile.name,
@@ -405,9 +379,8 @@ export const DB = {
 
         if (error) throw error;
 
-        // 5. Seed Default Data (Services) so user isn't empty
         const defaultServices = INITIAL_DATA.services.map(s => ({
-            id: `${profile.id}_${s.id}`, // Unique ID
+            id: `${profile.id}_${s.id}`,
             business_id: profile.id,
             name: s.name,
             price: s.price,
@@ -415,11 +388,9 @@ export const DB = {
             description: s.description
         }));
 
-        // Insert into Supabase
         const { error: seedError } = await supabase.from('services').insert(defaultServices);
         if (seedError) console.warn("Failed to seed services", seedError);
         
-        // Update Local State with formatted default services
         const formattedServices = defaultServices.map(mapService);
         localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify(formattedServices));
 
@@ -441,7 +412,6 @@ export const DB = {
     else list.push(service);
     localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify(list));
 
-    // Sync to Supabase
     if (isSupabaseConfigured) {
       try {
           const profile = DB.getProfile();
@@ -460,7 +430,6 @@ export const DB = {
   deleteService: (id: string) => {
     const list = DB.getServices().filter(s => s.id !== id);
     localStorage.setItem(DB_KEYS.SERVICES, JSON.stringify(list));
-    // Supabase delete
     if (isSupabaseConfigured) {
       try { supabase.from('services').delete().eq('id', id).then(() => {}); } catch(e){}
     }
@@ -478,7 +447,6 @@ export const DB = {
     else list.push(staff);
     localStorage.setItem(DB_KEYS.STAFF, JSON.stringify(list));
 
-    // Sync to Supabase
     if (isSupabaseConfigured) {
       try {
           const profile = DB.getProfile();
@@ -498,7 +466,6 @@ export const DB = {
   deleteStaff: (id: string) => {
     const list = DB.getStaff().filter(s => s.id !== id);
     localStorage.setItem(DB_KEYS.STAFF, JSON.stringify(list));
-    // Supabase delete
     if (isSupabaseConfigured) {
       try { supabase.from('staff').delete().eq('id', id).then(() => {}); } catch(e){}
     }
@@ -510,14 +477,12 @@ export const DB = {
     return data ? JSON.parse(data) : [];
   },
   saveCustomer: async (customer: Customer) => {
-    // Save locally
     const list = DB.getCustomers();
     const existing = list.findIndex(s => s.id === customer.id);
     if (existing >= 0) list[existing] = customer;
     else list.push(customer);
     localStorage.setItem(DB_KEYS.CUSTOMERS, JSON.stringify(list));
 
-    // Sync to Supabase for Admin visibility
     if (isSupabaseConfigured) {
       try {
         const profile = DB.getProfile();
@@ -531,26 +496,111 @@ export const DB = {
             loyalty_points: customer.loyaltyPoints
         });
       } catch (e) {
-          console.warn("Supabase sync failed", e);
+        console.warn("Supabase Customer Sync Error", e);
       }
     }
   },
 
+  // --- Profile ---
+  getProfile: (): BusinessProfile => {
+      const data = localStorage.getItem(DB_KEYS.PROFILE);
+      return data ? JSON.parse(data) : INITIAL_DATA.profile;
+  },
+  saveProfile: (profile: BusinessProfile) => {
+      localStorage.setItem(DB_KEYS.PROFILE, JSON.stringify(profile));
+      if (isSupabaseConfigured) {
+          supabase.from('business_profiles').upsert({
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              phone: profile.phone,
+              address: profile.address,
+              upi_id: profile.upiId,
+              gst_in: profile.gstIn,
+              invoice_terms: profile.invoiceTerms,
+              is_subscribed: profile.isSubscribed,
+              subscription_plan: profile.subscriptionPlan,
+              notification_settings: profile.notificationSettings
+          }).then(({error}) => { if(error) console.warn("Profile Sync Error", error)});
+      }
+  },
+
+  // --- Appointments ---
+  getAppointments: (): Appointment[] => {
+      const data = localStorage.getItem(DB_KEYS.APPOINTMENTS);
+      return data ? JSON.parse(data) : [];
+  },
+  saveAppointment: (appt: Appointment) => {
+      const list = DB.getAppointments();
+      const existing = list.findIndex(a => a.id === appt.id);
+      if (existing >= 0) list[existing] = appt;
+      else list.push(appt);
+      localStorage.setItem(DB_KEYS.APPOINTMENTS, JSON.stringify(list));
+
+      if (isSupabaseConfigured) {
+          const profile = DB.getProfile();
+          supabase.from('appointments').upsert({
+              id: appt.id,
+              business_id: profile.id,
+              customer_id: appt.customerId,
+              staff_id: appt.staffId,
+              service_id: appt.serviceId,
+              date: appt.date,
+              time: appt.time,
+              status: appt.status,
+              notes: appt.notes
+          }).then(({error}) => { if(error) console.warn("Appt Sync Error", error)});
+      }
+  },
+  checkAvailability: (staffId: string, date: string, time: string, durationMinutes: number): boolean => {
+      const appts = DB.getAppointments().filter(a => a.staffId === staffId && a.date === date && a.status !== AppointmentStatus.CANCELLED);
+      // Simplified: check if exact start time is taken
+      const isBusy = appts.some(a => a.time === time); 
+      return !isBusy;
+  },
+
+  // --- Invoices ---
+  getInvoices: (): Invoice[] => {
+      const data = localStorage.getItem(DB_KEYS.INVOICES);
+      return data ? JSON.parse(data) : [];
+  },
+  saveInvoice: (invoice: Invoice) => {
+      const list = DB.getInvoices();
+      const existing = list.findIndex(i => i.id === invoice.id);
+      if (existing >= 0) list[existing] = invoice;
+      else list.push(invoice);
+      localStorage.setItem(DB_KEYS.INVOICES, JSON.stringify(list));
+
+      if (isSupabaseConfigured) {
+          const profile = DB.getProfile();
+          supabase.from('invoices').upsert({
+              id: invoice.id,
+              business_id: profile.id,
+              appointment_id: invoice.appointmentId,
+              customer_id: invoice.customerId,
+              date: invoice.date,
+              amount: invoice.amount,
+              tax: invoice.tax,
+              total: invoice.total,
+              method: invoice.method,
+              generated_at: invoice.generatedAt
+          }).then(({error}) => { if(error) console.warn("Invoice Sync Error", error)});
+      }
+  },
+
   // --- Inventory ---
   getInventory: (): InventoryItem[] => {
-    const data = localStorage.getItem(DB_KEYS.INVENTORY);
-    return data ? JSON.parse(data) : [];
+      const data = localStorage.getItem(DB_KEYS.INVENTORY);
+      return data ? JSON.parse(data) : [];
   },
   saveInventoryItem: (item: InventoryItem) => {
-    const list = DB.getInventory();
-    const existing = list.findIndex(i => i.id === item.id);
-    if (existing >= 0) list[existing] = item;
-    else list.push(item);
-    localStorage.setItem(DB_KEYS.INVENTORY, JSON.stringify(list));
+      const list = DB.getInventory();
+      const existing = list.findIndex(i => i.id === item.id);
+      if (existing >= 0) list[existing] = item;
+      else list.push(item);
+      localStorage.setItem(DB_KEYS.INVENTORY, JSON.stringify(list));
 
-    // Sync to Supabase
-    if (isSupabaseConfigured) {
-      try {
+      if (isSupabaseConfigured) {
           const profile = DB.getProfile();
           supabase.from('inventory').upsert({
               id: item.id,
@@ -562,17 +612,26 @@ export const DB = {
               min_stock_alert: item.minStockAlert,
               vendor: item.vendor,
               image: item.image
-          }).then(({ error }) => { if(error) console.warn("Supabase Inventory Sync Error", error); });
-      } catch(e) {}
-    }
+          }).then(({error}) => { if(error) console.warn("Inventory Sync Error", error)});
+      }
   },
 
-  // --- Appointments ---
-  getAppointments: (): Appointment[] => {
-    const data = localStorage.getItem(DB_KEYS.APPOINTMENTS);
-    return data ? JSON.parse(data) : [];
+  // --- AI Consults (Local Only for now) ---
+  saveAIConsultation: (data: any) => {
+      const history = JSON.parse(localStorage.getItem(DB_KEYS.AI_CONSULTS) || '[]');
+      history.push(data);
+      localStorage.setItem(DB_KEYS.AI_CONSULTS, JSON.stringify(history));
   },
-  saveAppointment: (apt: Appointment) => {
-    const list = DB.getAppointments();
-    const existing = list.findIndex(a => a.id === apt.id);
-    if (existing >= 
+
+  // --- Admin ---
+  getAllBusinesses: async () => {
+      if (!isSupabaseConfigured) return [];
+      const { data } = await supabase.from('business_profiles').select('*');
+      return data || [];
+  },
+  getAllGlobalCustomers: async () => {
+      if (!isSupabaseConfigured) return [];
+      const { data } = await supabase.from('all_customers').select('*').order('created_at', { ascending: false });
+      return data || [];
+  }
+};
